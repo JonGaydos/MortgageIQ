@@ -15,7 +15,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = process.env.DATA_DIR || '/data';
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 const STATEMENTS_DIR = path.join(DATA_DIR, 'statements');
-const DB_PATH = path.join(DATA_DIR, 'mortgage.db');
+const DB_PATH = path.join(DATA_DIR, 'payoffiq.db');
 const JWT_SECRET = process.env.JWT_SECRET || 'mortgageiq-jwt-secret-change-me';
 
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
