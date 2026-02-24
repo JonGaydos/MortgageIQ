@@ -1,140 +1,122 @@
-# 🏠 MortgageIQ
+# 💰 PayoffIQ
 
-A self-hosted mortgage loan tracker that runs as a **single Docker container**. Track payments, monitor your balance, analyze escrow, and calculate payoff scenarios with three comparison modes. Optional Claude AI integration auto-reads your monthly mortgage statement PDFs.
+A self-hosted loan tracker that runs as a **single Docker container**. Track payments, store documents, model payoff scenarios, and extract data from statement PDFs using AI — all on your own server.
+
+Supports **Mortgage, ARM, HELOC, Auto, and Personal** loan types.
 
 ---
 
 ## Features
 
-- **Dashboard** — Balance progress, payoff projection, payment charts
-- **Payment History** — Log principal, interest, escrow, extra principal per payment
-- **PDF Auto-Processing** — Upload a statement PDF, Claude AI fills the form *(requires API key)*
-- **Payoff Calculator** — Three side-by-side scenarios:
-  - Extra monthly payment only
-  - One-time lump sum applied to principal now
-  - Both combined
-- **Amortization Schedule** — View month-by-month breakdown for any scenario
-- **Escrow Tracker** — Separate tracking for property tax and insurance disbursements
-- **Multiple Loans** — Track as many mortgages as you want
-- **All data stays local** — SQLite file on your own server
+**Loans & Dashboard**
+- Track multiple loans of any type simultaneously
+- Balance progress bar, payoff projection, and payment charts per loan
+- ARM loans: fixed period tracking, rate history log, and best/worst/current rate scenario modeling
+
+**Payments**
+- Log principal, interest, escrow, extra principal, and ending balance per payment
+- Auto-calculate ending balance from previous payment
+- Mismatch detection if payment fields don't sum to total
+
+**Document Vault**
+- Attach PDFs and images directly to payments or to a loan itself
+- Drag-and-drop upload, clickable links, delete — no cloud storage involved
+
+**AI Statement Extraction** *(optional)*
+- Upload a PDF statement and have payment data filled in automatically
+- Supports **Claude** (Anthropic), **ChatGPT** (OpenAI), **Gemini** (Google), and **Copilot** (Microsoft)
+- API keys stored locally in your database — add only the providers you want
+
+**Payoff Calculator**
+- Extra monthly payment, lump sum, or both — side-by-side scenario comparison
+- **Payoff-by-date**: enter a target date, see exactly how much extra you'd need to pay monthly
+- Interest saved and time saved shown for every scenario
+- Full amortization table for any scenario
+
+**Escrow Tracker**
+- Separate log for property tax and insurance disbursements
+- Totals by type across all entries
+
+**Security**
+- Username + password login with bcrypt hashing and JWT sessions
+- All routes protected server-side — suitable for use behind a Cloudflare tunnel
+
+**All data stays local** — SQLite file on your own server, nothing leaves your machine
 
 ---
 
-## Quick Start (Any Docker Host)
+## Quick Start
 
 ```bash
 docker run -d \
-  --name mortgageiq \
+  --name payoffiq \
   --restart unless-stopped \
   -p 3010:3010 \
-  -v /mnt/user/appdata/mortgageiq:/data \
-  -e ANTHROPIC_API_KEY=your_key_here \
-  ghcr.io/JonGaydos/mortgageiq:latest
+  -v /mnt/user/appdata/payoffiq:/data \
+  ghcr.io/JonGaydos/payoffiq:latest
 ```
 
-Open **http://localhost:3010**. Omit `ANTHROPIC_API_KEY` if you don't need PDF processing.
+Open **http://localhost:3010** and create your account on first launch. No API keys required — add them later in Settings if you want PDF extraction.
 
 ---
 
 ## Unraid Installation
 
 ### Option A — Community Apps *(once published)*
-Search **MortgageIQ** in Community Apps and click Install.
+Search **PayoffIQ** in Community Apps and click Install.
 
 ### Option B — Manual template
 1. Docker tab → **Add Container**
-2. Paste the contents of `mortgageiq-unraid-template.xml` into the template field
-3. Update `yourusername` to your GitHub username
-4. Fill in your Anthropic API key if desired
-5. Click **Apply**
+2. Paste the contents of `payoffiq-unraid-template.xml` into the template field
+3. Click **Apply**
 
 ---
 
-## Getting an Anthropic API Key *(optional)*
+## AI Provider Setup *(optional)*
 
-1. Sign up at [console.anthropic.com](https://console.anthropic.com)
-2. **API Keys** → **Create Key**
-3. **Billing** → add $5 in credits (lasts years at fractions of a cent per PDF)
-4. Paste the key into `ANTHROPIC_API_KEY`
+API keys are configured inside the app under **Settings → AI Provider API Keys** — no environment variables needed. Add keys for whichever providers you want:
+
+| Provider | Where to get a key |
+|---|---|
+| Claude (Anthropic) | [console.anthropic.com](https://console.anthropic.com/api-keys) |
+| ChatGPT (OpenAI) | [platform.openai.com](https://platform.openai.com/api-keys) |
+| Gemini (Google) | [aistudio.google.com](https://aistudio.google.com/app/apikey) |
+| Copilot (Microsoft) | [github.com/settings/tokens](https://github.com/settings/tokens) |
+
+Each PDF extraction costs fractions of a cent. $5 in credits will last years for personal use.
 
 ---
 
-## Publishing Updates (GitHub + GHCR)
-
-Every push to `main` automatically builds and publishes a new Docker image via GitHub Actions. No manual `docker build` or `docker push` needed.
-
-### First-time setup
+## Updating
 
 ```bash
-git init
-git add .
-git commit -m "Initial commit"
-
-# Create a repo on github.com first, then:
-git remote add origin https://github.com/JonGaydos/mortgageiq.git
-git branch -M main
-git push -u origin main
-```
-
-Watch the build under the **Actions** tab on your repo. Image publishes to `ghcr.io/JonGaydos/mortgageiq:latest`.
-
-### Making changes going forward
-
-```bash
-git add .
-git commit -m "Describe your change"
-git push origin master
-```
-
-The image rebuilds and republishes automatically.
-
-> **⚠️ After any fresh `git init`:** The workflow file resets to trigger on `main` instead of `master`, so the Actions build won't appear. Fix it with:
-> ```bash
-> python3 -c "f=open('.github/workflows/docker-publish.yml','r+');c=f.read().replace('      - main','      - master');f.seek(0);f.write(c);f.truncate();print('Fixed')"
-> git add . && git commit -m "Fix workflow branch" && git push origin master --force
-> ```
-
-### Pulling the update on Unraid
-
-```bash
-docker pull ghcr.io/JonGaydos/mortgageiq:latest
-docker stop mortgageiq && docker rm mortgageiq
-docker run -d --name mortgageiq --restart unless-stopped \
+docker pull ghcr.io/JonGaydos/payoffiq:latest
+docker stop payoffiq && docker rm payoffiq
+docker run -d --name payoffiq --restart unless-stopped \
   -p 3010:3010 \
-  -v /mnt/user/appdata/mortgageiq:/data \
-  -e ANTHROPIC_API_KEY=your_key_here \
-  ghcr.io/JonGaydos/mortgageiq:latest
+  -v /mnt/user/appdata/payoffiq:/data \
+  ghcr.io/JonGaydos/payoffiq:latest
 ```
 
-Your data is never touched during updates.
+Your data is never touched during updates. On Unraid, use the **Force Update** button on the container.
 
 ---
 
 ## Data & Backups
 
 ```
-/mnt/user/appdata/mortgageiq/
-├── mortgage.db    ← entire database
-└── uploads/       ← temp PDFs, auto-deleted after processing
+/mnt/user/appdata/payoffiq/
+├── payoffiq.db     ← entire database (loans, payments, settings, users)
+└── statements/     ← uploaded documents and PDFs
 ```
 
-To back up: copy `mortgage.db`. To restore: stop container, replace file, start again.
-
----
-
-## Removing MortgageIQ
-
-```bash
-docker stop mortgageiq && docker rm mortgageiq
-docker rmi ghcr.io/JonGaydos/mortgageiq:latest
-rm -rf /mnt/user/appdata/mortgageiq
-```
+To back up: copy the entire `payoffiq` appdata folder. To restore: stop the container, replace the files, start again.
 
 ---
 
 ## Troubleshooting
 
-**Port conflict** — Change `3010` to any free port.  
-**PDF fails** — Check API key and credits at console.anthropic.com/billing.  
-**View logs** — `docker logs mortgageiq`  
-**Build failing** — Check the Actions tab on GitHub for the error.
+**Port conflict** — Change the left side of `-p 3010:3010` to any free port.  
+**Forgot password** — Stop the container, delete `payoffiq.db`, restart — you'll be prompted to create a new account. *(All loan data will be lost.)*  
+**PDF extraction fails** — Verify your API key and account credits in the provider's dashboard.  
+**View logs** — `docker logs payoffiq`

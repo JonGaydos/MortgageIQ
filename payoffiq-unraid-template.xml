@@ -1,0 +1,59 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <n>PayoffIQ</n>
+  <Repository>ghcr.io/JonGaydos/payoffiq:latest</Repository>
+  <Registry></Registry>
+  <Network>bridge</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support></Support>
+  <Project></Project>
+  <Overview>
+    PayoffIQ is a self-hosted loan tracker for mortgages, auto loans, personal loans, HELOCs, and ARMs. Log payments, monitor balances, store documents, and model payoff scenarios with AI-assisted PDF extraction.
+
+    Features:
+    - Dashboard with balance progress, payoff projection, and payment charts
+    - Supports Mortgage, ARM, HELOC, Auto, and Personal loan types
+    - Payment history with principal / interest / escrow / extra principal breakdown
+    - PDF statement extraction via Claude, ChatGPT, Gemini, or Copilot (optional)
+    - Document vault — attach PDFs and images to payments or loans
+    - Payoff calculator with extra payment scenarios and payoff-by-date reverse calculation
+    - ARM rate history tracking and best/worst/current scenario modeling
+    - Escrow tracker for property tax and insurance disbursements
+    - Login with username and password for secure remote access
+    - All data stored locally — nothing leaves your server
+  </Overview>
+  <Category>Finance: Productivity:</Category>
+  <WebUI>http://[IP]:[PORT:3010]/</WebUI>
+  <TemplateURL></TemplateURL>
+  <Icon>https://raw.githubusercontent.com/JonGaydos/payoffiq/master/icon.png</Icon>
+  <ExtraParams>--restart unless-stopped</ExtraParams>
+  <PostArgs></PostArgs>
+  <CPUset></CPUset>
+  <DateInstalled></DateInstalled>
+  <DonateText></DonateText>
+  <DonateLink></DonateLink>
+  <Description>Self-hosted loan tracker with payment history, payoff calculator, document vault, ARM modeling, and optional AI PDF extraction.</Description>
+  <Networking>
+    <Mode>bridge</Mode>
+    <Publish>
+      <Port>
+        <HostPort>3010</HostPort>
+        <ContainerPort>3010</ContainerPort>
+        <Protocol>tcp</Protocol>
+      </Port>
+    </Publish>
+  </Networking>
+  <Data>
+    <Volume>
+      <HostDir>/mnt/user/appdata/payoffiq</HostDir>
+      <ContainerDir>/data</ContainerDir>
+      <Mode>rw</Mode>
+    </Volume>
+  </Data>
+  <Environment>
+  </Environment>
+  <Labels/>
+  <Config Name="Web UI Port" Target="3010" Default="3010" Mode="tcp" Description="Port to access PayoffIQ in your browser." Type="Port" Display="always" Required="true" Mask="false">3010</Config>
+  <Config Name="Data Directory" Target="/data" Default="/mnt/user/appdata/payoffiq" Mode="rw" Description="Where PayoffIQ stores its database and uploaded files." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/payoffiq</Config>
+</Container>

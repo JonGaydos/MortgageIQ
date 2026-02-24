@@ -81,7 +81,7 @@ function LoginPage({ onLogin }) {
       <div style={{ ...s.card, width:360, padding:'40px' }}>
         <div style={{ textAlign:'center', marginBottom:32 }}>
           <div style={{ fontSize:40, marginBottom:8 }}>🏠</div>
-          <h1 style={{ fontFamily:"'DM Serif Display', serif", fontSize:28, color:'var(--ink)' }}>MortgageIQ</h1>
+          <h1 style={{ fontFamily:"'DM Serif Display', serif", fontSize:28, color:'var(--ink)' }}>PayoffIQ</h1>
           <p style={{ color:'var(--warm-gray)', fontSize:13, marginTop:4 }}>{mode === 'setup' ? 'Create your account to get started' : 'Sign in to your account'}</p>
         </div>
         {error && <div style={{ background:'#FEF3F0', color:'var(--terracotta)', padding:'10px 14px', borderRadius:8, fontSize:13, marginBottom:16 }}>{error}</div>}
@@ -390,7 +390,7 @@ function PaymentForm({ loanId, hasEscrow, initial = {}, onSave, onCancel }) {
 function Dashboard({ selectedLoan, analytics, payments }) {
   if (!selectedLoan || !analytics) return (
     <div>
-      <div style={s.pageHeader}><h1 style={s.pageTitle}>Welcome to MortgageIQ</h1><p style={s.pageSub}>Select or create a loan to get started</p></div>
+      <div style={s.pageHeader}><h1 style={s.pageTitle}>Welcome to PayoffIQ</h1><p style={s.pageSub}>Select or create a loan to get started</p></div>
       <div style={{...s.card,textAlign:'center',padding:'60px 40px'}}>
         <div style={{fontSize:48,marginBottom:16}}>🏠</div>
         <h2 style={{fontFamily:"'DM Serif Display',serif",marginBottom:8,color:'var(--ink)'}}>No Loan Selected</h2>
@@ -990,7 +990,7 @@ export default function App() {
       <div className={`sidebar-overlay${sidebarOpen?' open':''}`} onClick={()=>setSidebarOpen(false)}/>
       <div className={`sidebar${sidebarOpen?' open':''}`} style={s.sidebar}>
         <div style={s.logo}>
-          <div style={s.logoTitle}>MortgageIQ</div>
+          <div style={s.logoTitle}>PayoffIQ</div>
           <div style={s.logoSub}>Loan Manager</div>
         </div>
         {username&&<div style={{padding:'8px 20px',fontSize:12,color:'rgba(255,255,255,0.45)'}}>👤 {username}</div>}
