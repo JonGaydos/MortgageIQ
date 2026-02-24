@@ -1,0 +1,41 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --cream: #FAF7F2;
+  --ink: #1A1208;
+  --gold: #C9973A;
+  --gold-light: #E8C97A;
+  --terracotta: #C4622D;
+  --sage: #4A6741;
+  --warm-gray: #8B7355;
+  --surface: #F2EDE4;
+  --border: #DDD5C4;
+  --card: #FFFFFF;
+  --shadow: 0 2px 16px rgba(26,18,8,0.08);
+  --shadow-lg: 0 8px 40px rgba(26,18,8,0.12);
+  --radius: 12px;
+  --radius-sm: 8px;
+  font-size: 15px;
+}
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--cream);
+  color: var(--ink);
+  min-height: 100vh;
+  line-height: 1.6;
+}
+
+h1, h2, h3, h4 {
+  font-family: 'DM Serif Display', serif;
+  line-height: 1.2;
+}
+
+button { cursor: pointer; font-family: 'DM Sans', sans-serif; }
+input, select, textarea { font-family: 'DM Sans', sans-serif; }
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--surface); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+* { transition: background-color 0.15s, border-color 0.15s, box-shadow 0.15s; }
