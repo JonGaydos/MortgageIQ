@@ -12,9 +12,11 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = process.env.DATA_DIR || '/data';
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
+const STATEMENTS_DIR = path.join(DATA_DIR, 'statements');
 const DB_PATH = path.join(DATA_DIR, 'mortgage.db');
 
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+fs.mkdirSync(STATEMENTS_DIR, { recursive: true });
 
 const db = new Database(DB_PATH);
 db.pragma('journal_mode = WAL');
@@ -44,6 +46,7 @@ db.exec(`
     ending_balance REAL,
     statement_month TEXT,
     notes TEXT,
+    statement_filename TEXT,
     created_at TEXT DEFAULT (datetime('now'))
   );
   CREATE TABLE IF NOT EXISTS escrow_items (
@@ -62,6 +65,11 @@ db.exec(`
     updated_at TEXT DEFAULT (datetime('now'))
   );
 `);
+
+// Migration: add statement_filename if it doesn't exist
+try {
+  db.prepare('ALTER TABLE payments ADD COLUMN statement_filename TEXT').run();
+} catch (e) { /* column already exists */ }
 
 console.log('Database initialized at ' + DB_PATH);
 
@@ -156,11 +164,14 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const storage = multer.diskStorage({
+// Serve stored statements
+app.use('/statements', express.static(STATEMENTS_DIR));
+
+const tempStorage = multer.diskStorage({
   destination: UPLOADS_DIR,
   filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
 });
-const upload = multer({ storage });
+const upload = multer({ storage: tempStorage });
 
 // SETTINGS
 app.get('/api/settings', (req, res) => {
@@ -208,34 +219,82 @@ app.put('/api/loans/:id', (req, res) => {
   res.json(db.prepare('SELECT * FROM loans WHERE id = ?').get(req.params.id));
 });
 
-app.delete('/api/loans/:id', (req, res) => { db.prepare('DELETE FROM loans WHERE id = ?').run(req.params.id); res.json({ success: true }); });
+app.delete('/api/loans/:id', (req, res) => {
+  // Clean up any stored statements for this loan's payments
+  const payments = db.prepare('SELECT statement_filename FROM payments WHERE loan_id = ? AND statement_filename IS NOT NULL').all(req.params.id);
+  payments.forEach(p => {
+    try { fs.unlinkSync(path.join(STATEMENTS_DIR, p.statement_filename)); } catch (e) {}
+  });
+  db.prepare('DELETE FROM loans WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+});
 
 // PAYMENTS
 app.get('/api/loans/:id/payments', (req, res) =>
   res.json(db.prepare('SELECT * FROM payments WHERE loan_id = ? ORDER BY payment_date ASC').all(req.params.id)));
 
 app.post('/api/loans/:id/payments', (req, res) => {
-  const { payment_date, total_payment, principal, interest, escrow, extra_principal, ending_balance, statement_month, notes } = req.body;
+  const { payment_date, total_payment, principal, interest, escrow, extra_principal, ending_balance, statement_month, notes, statement_filename } = req.body;
   const result = db.prepare(
-    'INSERT INTO payments (loan_id,payment_date,total_payment,principal,interest,escrow,extra_principal,ending_balance,statement_month,notes) VALUES (?,?,?,?,?,?,?,?,?,?)'
-  ).run(req.params.id, payment_date, total_payment, principal, interest, escrow, extra_principal, ending_balance, statement_month, notes);
+    'INSERT INTO payments (loan_id,payment_date,total_payment,principal,interest,escrow,extra_principal,ending_balance,statement_month,notes,statement_filename) VALUES (?,?,?,?,?,?,?,?,?,?,?)'
+  ).run(req.params.id, payment_date, total_payment, principal, interest, escrow, extra_principal, ending_balance, statement_month, notes, statement_filename || null);
   updateLoanBalance(req.params.id);
   res.json(db.prepare('SELECT * FROM payments WHERE id = ?').get(result.lastInsertRowid));
 });
 
 app.put('/api/payments/:id', (req, res) => {
-  const { payment_date, total_payment, principal, interest, escrow, extra_principal, ending_balance, statement_month, notes } = req.body;
-  db.prepare('UPDATE payments SET payment_date=?,total_payment=?,principal=?,interest=?,escrow=?,extra_principal=?,ending_balance=?,statement_month=?,notes=? WHERE id=?')
-    .run(payment_date, total_payment, principal, interest, escrow, extra_principal, ending_balance, statement_month, notes, req.params.id);
+  const { payment_date, total_payment, principal, interest, escrow, extra_principal, ending_balance, statement_month, notes, statement_filename } = req.body;
+  db.prepare('UPDATE payments SET payment_date=?,total_payment=?,principal=?,interest=?,escrow=?,extra_principal=?,ending_balance=?,statement_month=?,notes=?,statement_filename=? WHERE id=?')
+    .run(payment_date, total_payment, principal, interest, escrow, extra_principal, ending_balance, statement_month, notes, statement_filename || null, req.params.id);
   const payment = db.prepare('SELECT * FROM payments WHERE id = ?').get(req.params.id);
   if (payment) updateLoanBalance(payment.loan_id);
   res.json(payment);
 });
 
 app.delete('/api/payments/:id', (req, res) => {
-  const payment = db.prepare('SELECT loan_id FROM payments WHERE id = ?').get(req.params.id);
+  const payment = db.prepare('SELECT loan_id, statement_filename FROM payments WHERE id = ?').get(req.params.id);
+  if (payment?.statement_filename) {
+    try { fs.unlinkSync(path.join(STATEMENTS_DIR, payment.statement_filename)); } catch (e) {}
+  }
   db.prepare('DELETE FROM payments WHERE id = ?').run(req.params.id);
   if (payment) updateLoanBalance(payment.loan_id);
+  res.json({ success: true });
+});
+
+// GET latest ending balance for a loan (for auto-calc)
+app.get('/api/loans/:id/latest-balance', (req, res) => {
+  const latest = db.prepare(
+    'SELECT ending_balance FROM payments WHERE loan_id = ? ORDER BY payment_date DESC, created_at DESC LIMIT 1'
+  ).get(req.params.id);
+  const loan = db.prepare('SELECT original_amount FROM loans WHERE id = ?').get(req.params.id);
+  res.json({ balance: latest?.ending_balance ?? loan?.original_amount ?? null });
+});
+
+// STATEMENT UPLOAD (store PDF linked to a payment)
+app.post('/api/payments/:id/statement', upload.single('pdf'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No PDF uploaded' });
+  const payment = db.prepare('SELECT * FROM payments WHERE id = ?').get(req.params.id);
+  if (!payment) {
+    try { fs.unlinkSync(req.file.path); } catch (e) {}
+    return res.status(404).json({ error: 'Payment not found' });
+  }
+  // Delete old statement if exists
+  if (payment.statement_filename) {
+    try { fs.unlinkSync(path.join(STATEMENTS_DIR, payment.statement_filename)); } catch (e) {}
+  }
+  // Move from temp uploads to permanent statements dir
+  const filename = `payment-${req.params.id}-${Date.now()}.pdf`;
+  fs.renameSync(req.file.path, path.join(STATEMENTS_DIR, filename));
+  db.prepare('UPDATE payments SET statement_filename = ? WHERE id = ?').run(filename, req.params.id);
+  res.json({ success: true, filename });
+});
+
+app.delete('/api/payments/:id/statement', (req, res) => {
+  const payment = db.prepare('SELECT statement_filename FROM payments WHERE id = ?').get(req.params.id);
+  if (payment?.statement_filename) {
+    try { fs.unlinkSync(path.join(STATEMENTS_DIR, payment.statement_filename)); } catch (e) {}
+    db.prepare('UPDATE payments SET statement_filename = NULL WHERE id = ?').run(req.params.id);
+  }
   res.json({ success: true });
 });
 
@@ -320,7 +379,7 @@ app.post('/api/loans/:id/calculate-payoff', (req, res) => {
   });
 });
 
-// PDF PROCESSING
+// PDF PROCESSING (AI extraction — keeps PDF in temp, does NOT store permanently)
 app.post('/api/loans/:id/process-pdf', upload.single('pdf'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No PDF uploaded' });
   const provider = req.body.provider || 'claude';
@@ -338,8 +397,12 @@ app.post('/api/loans/:id/process-pdf', upload.single('pdf'), async (req, res) =>
     else if (provider === 'gemini') data = await extractWithGemini(apiKey, base64PDF);
     else if (provider === 'copilot') data = await extractWithCopilot(apiKey, base64PDF);
     else throw new Error('Unknown provider');
-    try { fs.unlinkSync(req.file.path); } catch (e) {}
-    res.json({ success: true, extracted: data, provider });
+
+    // Move file to statements dir with a temp name so frontend can attach it to the payment after saving
+    const tempFilename = `temp-${Date.now()}.pdf`;
+    fs.renameSync(req.file.path, path.join(STATEMENTS_DIR, tempFilename));
+
+    res.json({ success: true, extracted: data, provider, tempFilename });
   } catch (err) {
     console.error('PDF processing error (' + provider + '):', err);
     try { if (req.file?.path) fs.unlinkSync(req.file.path); } catch (e) {}
@@ -347,5 +410,25 @@ app.post('/api/loans/:id/process-pdf', upload.single('pdf'), async (req, res) =>
   }
 });
 
+
+// Attach a temp PDF (from AI extraction) to a saved payment
+app.post('/api/payments/:id/attach-temp-pdf', express.json(), (req, res) => {
+  const { tempFilename } = req.body;
+  if (!tempFilename) return res.status(400).json({ error: 'No filename provided' });
+  const src = path.join(STATEMENTS_DIR, tempFilename);
+  if (!fs.existsSync(src)) return res.status(404).json({ error: 'Temp file not found' });
+  const payment = db.prepare('SELECT * FROM payments WHERE id = ?').get(req.params.id);
+  if (!payment) return res.status(404).json({ error: 'Payment not found' });
+  // Remove old statement if any
+  if (payment.statement_filename) {
+    try { fs.unlinkSync(path.join(STATEMENTS_DIR, payment.statement_filename)); } catch (e) {}
+  }
+  const finalName = `payment-${req.params.id}-${Date.now()}.pdf`;
+  fs.renameSync(src, path.join(STATEMENTS_DIR, finalName));
+  db.prepare('UPDATE payments SET statement_filename = ? WHERE id = ?').run(finalName, req.params.id);
+  res.json({ success: true, filename: finalName });
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log('MortgageIQ backend running on port ' + PORT));
+// This line intentionally left blank — attach-temp-pdf endpoint is already in server above
