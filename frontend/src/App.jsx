@@ -53,6 +53,71 @@ const s = {
 function Field({ label, children }) { return <div><label style={s.label}>{label}</label>{children}</div>; }
 
 // ─── LOGIN / SETUP ────────────────────────────────────────────────────────────
+function ResetPasswordPage({ token, onDone }) {
+  const [status, setStatus] = useState('loading');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [error, setError] = useState('');
+  const [username, setUsername] = useState('');
+
+  useEffect(() => {
+    fetch(`/api/auth/validate-reset-token?token=${token}`)
+      .then(r => r.json())
+      .then(d => { if (d.valid) { setUsername(d.username); setStatus('valid'); } else setStatus('invalid'); })
+      .catch(() => setStatus('invalid'));
+  }, [token]);
+
+  const submit = async () => {
+    setError('');
+    if (password !== confirm) { setError('Passwords do not match'); return; }
+    if (password.length < 6) { setError('Min 6 characters'); return; }
+    const r = await fetch('/api/auth/reset-password', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token, newPassword: password }) });
+    const d = await r.json();
+    if (!r.ok) { setError(d.error); return; }
+    setStatus('success');
+  };
+
+  const wrap = (content) => (
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'var(--cream)' }}>
+      <div style={{ ...s.card, width:360, padding:'40px' }}>{content}</div>
+    </div>
+  );
+
+  if (status === 'loading') return wrap(<div style={{ textAlign:'center', color:'var(--warm-gray)' }}>Validating token...</div>);
+  if (status === 'invalid') return wrap(
+    <div style={{ textAlign:'center' }}>
+      <div style={{ fontSize:40, marginBottom:12 }}>⛔</div>
+      <h2 style={{ color:'var(--ink)', marginBottom:8 }}>Invalid or Expired Token</h2>
+      <p style={{ color:'var(--warm-gray)', fontSize:13, marginBottom:20 }}>Generate a new reset token from your server.</p>
+      <button style={s.btn()} onClick={onDone}>Back to Login</button>
+    </div>
+  );
+  if (status === 'success') return wrap(
+    <div style={{ textAlign:'center' }}>
+      <div style={{ fontSize:40, marginBottom:12 }}>✅</div>
+      <h2 style={{ color:'var(--ink)', marginBottom:8 }}>Password Updated</h2>
+      <p style={{ color:'var(--warm-gray)', fontSize:13, marginBottom:20 }}>You can now sign in with your new password.</p>
+      <button style={s.btn()} onClick={onDone}>Go to Login</button>
+    </div>
+  );
+
+  return wrap(
+    <div>
+      <div style={{ textAlign:'center', marginBottom:28 }}>
+        <div style={{ fontSize:40, marginBottom:8 }}>🔑</div>
+        <h1 style={{ fontFamily:"'DM Serif Display', serif", fontSize:24, color:'var(--ink)' }}>Reset Password</h1>
+        <p style={{ color:'var(--warm-gray)', fontSize:13, marginTop:4 }}>Setting new password for <strong>{username}</strong></p>
+      </div>
+      {error && <div style={{ background:'#FEF3F0', color:'var(--terracotta)', padding:'10px 14px', borderRadius:8, fontSize:13, marginBottom:16 }}>{error}</div>}
+      <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+        <Field label="New Password"><input style={s.input} type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Min 6 characters" autoFocus /></Field>
+        <Field label="Confirm Password"><input style={s.input} type="password" value={confirm} onChange={e=>setConfirm(e.target.value)} placeholder="Repeat password" onKeyDown={e=>e.key==='Enter'&&submit()} /></Field>
+        <button style={{ ...s.btn(), marginTop:4 }} onClick={submit}>Set New Password</button>
+      </div>
+    </div>
+  );
+}
+
 function LoginPage({ onLogin }) {
   const [mode, setMode] = useState('loading');
   const [username, setUsername] = useState('');
@@ -76,11 +141,32 @@ function LoginPage({ onLogin }) {
 
   if (mode === 'loading') return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', background:'var(--cream)' }}><div style={{ color:'var(--warm-gray)' }}>Loading...</div></div>;
 
+  if (mode === 'forgot') return (
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'var(--cream)' }}>
+      <div style={{ ...s.card, width:360, padding:'40px' }}>
+        <div style={{ textAlign:'center', marginBottom:28 }}>
+          <div style={{ fontSize:40, marginBottom:8 }}>🔑</div>
+          <h1 style={{ fontFamily:"'DM Serif Display', serif", fontSize:24, color:'var(--ink)' }}>Forgot Password?</h1>
+        </div>
+        <p style={{ color:'var(--warm-gray)', fontSize:13, lineHeight:1.6, marginBottom:16 }}>
+          Since PayoffIQ is self-hosted, password reset works through your server. Open a browser on your local network and visit:
+        </p>
+        <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:'12px 14px', fontFamily:'monospace', fontSize:12, wordBreak:'break-all', marginBottom:16, color:'var(--ink)' }}>
+          http://[your-server-ip]:3010/api/auth/generate-reset-token
+        </div>
+        <p style={{ color:'var(--warm-gray)', fontSize:12, lineHeight:1.6, marginBottom:24 }}>
+          That returns a one-time reset link valid for 15 minutes. Copy the <code>reset_url</code> value and open it in your browser.
+        </p>
+        <button style={{ ...s.btn('ghost'), width:'100%' }} onClick={() => setMode('login')}>← Back to Login</button>
+      </div>
+    </div>
+  );
+
   return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'var(--cream)' }}>
       <div style={{ ...s.card, width:360, padding:'40px' }}>
         <div style={{ textAlign:'center', marginBottom:32 }}>
-          <div style={{ fontSize:40, marginBottom:8 }}>🏠</div>
+          <div style={{ fontSize:40, marginBottom:8 }}>💰</div>
           <h1 style={{ fontFamily:"'DM Serif Display', serif", fontSize:28, color:'var(--ink)' }}>PayoffIQ</h1>
           <p style={{ color:'var(--warm-gray)', fontSize:13, marginTop:4 }}>{mode === 'setup' ? 'Create your account to get started' : 'Sign in to your account'}</p>
         </div>
@@ -90,12 +176,12 @@ function LoginPage({ onLogin }) {
           <Field label="Password"><input style={s.input} type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder={mode==='setup'?'Min 6 characters':'Enter password'} onKeyDown={e=>e.key==='Enter'&&submit()} /></Field>
           <button style={{ ...s.btn(), marginTop:4 }} onClick={submit}>{mode === 'setup' ? 'Create Account' : 'Sign In'}</button>
         </div>
+        {mode === 'login' && <div style={{ textAlign:'center', marginTop:16 }}><button style={{ background:'none', border:'none', color:'var(--warm-gray)', fontSize:12, cursor:'pointer', textDecoration:'underline' }} onClick={() => setMode('forgot')}>Forgot password?</button></div>}
         {mode === 'setup' && <p style={{ fontSize:11, color:'var(--warm-gray)', textAlign:'center', marginTop:16 }}>This creates the only account for this instance.</p>}
       </div>
     </div>
   );
 }
-
 // ─── LOAN FORM ────────────────────────────────────────────────────────────────
 function LoanForm({ initial = {}, onSave, onCancel }) {
   const [form, setForm] = useState({
@@ -957,9 +1043,9 @@ export default function App() {
   const [analytics, setAnalytics] = useState(null);
   const [payments, setPayments] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [theme, setTheme] = useState(()=>localStorage.getItem('mortgageiq-theme')||'light');
+  const [theme, setTheme] = useState(()=>localStorage.getItem('payoffiq-theme')||'light');
 
-  useEffect(()=>{ document.documentElement.setAttribute('data-theme',theme==='light'?'':theme); localStorage.setItem('mortgageiq-theme',theme); },[theme]);
+  useEffect(()=>{ document.documentElement.setAttribute('data-theme',theme==='light'?'':theme); localStorage.setItem('payoffiq-theme',theme); },[theme]);
 
   const loadLoans = useCallback(async()=>{ const r=await authFetch(`${API}/loans`); if(r.status===401){logout();return[];} const d=await r.json(); setLoans(d); return d; },[]);
   const selectLoan = useCallback(async(loan)=>{ setSelectedLoan(loan); const [a,p]=await Promise.all([authFetch(`${API}/loans/${loan.id}/analytics`).then(r=>r.json()),authFetch(`${API}/loans/${loan.id}/payments`).then(r=>r.json())]); setAnalytics(a); setPayments(p); },[]);
@@ -968,6 +1054,13 @@ export default function App() {
 
   const logout = () => { localStorage.removeItem('miq-token'); localStorage.removeItem('miq-user'); setAuthed(false); setUsername(''); setLoans([]); setSelectedLoan(null); };
   const onLogin = (u) => { setAuthed(true); setUsername(u); };
+
+  // Handle password reset URLs: ?token=xxx or #reset-password?token=xxx
+  const resetToken = new URLSearchParams(window.location.search).get('token') ||
+    (window.location.hash.includes('token=') ? new URLSearchParams(window.location.hash.split('?')[1]).get('token') : null);
+  if (resetToken || window.location.pathname === '/reset-password') {
+    return <ResetPasswordPage token={resetToken||''} onDone={() => { window.history.replaceState({}, '', '/'); setAuthed(false); }} />;
+  }
 
   if (!authed) return <LoginPage onLogin={onLogin}/>;
 

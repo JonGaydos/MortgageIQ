@@ -16,7 +16,7 @@ const DATA_DIR = process.env.DATA_DIR || '/data';
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 const STATEMENTS_DIR = path.join(DATA_DIR, 'statements');
 const DB_PATH = path.join(DATA_DIR, 'payoffiq.db');
-const JWT_SECRET = process.env.JWT_SECRET || 'mortgageiq-jwt-secret-change-me';
+const JWT_SECRET = process.env.JWT_SECRET || 'payoffiq-jwt-secret-change-me';
 
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 fs.mkdirSync(STATEMENTS_DIR, { recursive: true });
@@ -30,6 +30,8 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
+    reset_token TEXT,
+    reset_token_expires TEXT,
     created_at TEXT DEFAULT (datetime('now'))
   );
   CREATE TABLE IF NOT EXISTS loans (
@@ -106,6 +108,8 @@ db.exec(`
   `ALTER TABLE loans ADD COLUMN arm_rate_floor REAL`,
   `ALTER TABLE loans ADD COLUMN arm_periodic_cap REAL`,
   `ALTER TABLE payments ADD COLUMN statement_filename TEXT`,
+  `ALTER TABLE users ADD COLUMN reset_token TEXT`,
+  `ALTER TABLE users ADD COLUMN reset_token_expires TEXT`,
 ].forEach(sql => { try { db.prepare(sql).run(); } catch (e) {} });
 
 console.log('Database initialized at ' + DB_PATH);
@@ -199,6 +203,47 @@ app.post('/api/auth/login', (req, res) => {
   if (!user || !bcrypt.compareSync(password, user.password_hash))
     return res.status(401).json({ error:'Invalid credentials' });
   res.json({ token: jwt.sign({username},JWT_SECRET,{expiresIn:'30d'}), username });
+});
+
+// Generate a one-time reset token — accessible from the server's local network only
+// Usage: GET http://your-server:3010/api/auth/generate-reset-token
+app.get('/api/auth/generate-reset-token', (req, res) => {
+  const user = db.prepare('SELECT * FROM users LIMIT 1').get();
+  if (!user) return res.status(404).json({ error: 'No user account found' });
+  const token = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  const expires = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 minutes
+  db.prepare('UPDATE users SET reset_token=?, reset_token_expires=? WHERE id=?').run(token, expires, user.id);
+  const resetUrl = `/reset-password?token=${token}`;
+  res.json({
+    message: 'Reset token generated. Open the URL below in your browser within 15 minutes.',
+    reset_url: resetUrl,
+    full_url: `(open PayoffIQ in your browser and navigate to: ${resetUrl})`
+  });
+});
+
+// Validate a reset token (used by the frontend reset page)
+app.get('/api/auth/validate-reset-token', (req, res) => {
+  const { token } = req.query;
+  if (!token) return res.status(400).json({ error: 'Token required' });
+  const user = db.prepare('SELECT * FROM users WHERE reset_token=?').get(token);
+  if (!user) return res.status(400).json({ error: 'Invalid or expired token' });
+  if (new Date(user.reset_token_expires) < new Date())
+    return res.status(400).json({ error: 'Token expired — generate a new one' });
+  res.json({ valid: true, username: user.username });
+});
+
+// Consume the token and set a new password
+app.post('/api/auth/reset-password', (req, res) => {
+  const { token, newPassword } = req.body;
+  if (!token || !newPassword || newPassword.length < 6)
+    return res.status(400).json({ error: 'Token and new password (min 6 chars) required' });
+  const user = db.prepare('SELECT * FROM users WHERE reset_token=?').get(token);
+  if (!user) return res.status(400).json({ error: 'Invalid or expired token' });
+  if (new Date(user.reset_token_expires) < new Date())
+    return res.status(400).json({ error: 'Token expired — generate a new one' });
+  db.prepare('UPDATE users SET password_hash=?, reset_token=NULL, reset_token_expires=NULL WHERE id=?')
+    .run(bcrypt.hashSync(newPassword, 10), user.id);
+  res.json({ success: true, message: 'Password updated — you can now log in' });
 });
 
 // ─── PROTECTED ROUTES ─────────────────────────────────────────────────────────
