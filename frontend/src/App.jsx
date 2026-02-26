@@ -812,7 +812,7 @@ function BillsView(){
     setAnalyzeResult(null);loadBills(selectedCat?.id);
   };
   const delBill=async(id)=>{if(!confirm('Delete?'))return;await authFetch(`${API}/bills/${id}`,{method:'DELETE'});loadBills(selectedCat?.id);};
-  const togglePaid=async(bill)=>{await authFetch(`${API}/bills/${bill.id}`,{method:'PUT',body:JSON.stringify({...bill,paid:!bill.paid,custom_data:bill.custom_data?JSON.parse(bill.custom_data):{}}));loadBills(selectedCat?.id);};
+  const togglePaid=async(bill)=>{await authFetch(`${API}/bills/${bill.id}`,{method:'PUT',body:JSON.stringify({...bill,paid:!bill.paid,custom_data:bill.custom_data?JSON.parse(bill.custom_data):{}})});loadBills(selectedCat?.id);};
 
   const analyzeBillPDF=async(file,catId)=>{
     setAnalyzing(true);setAnalyzeResult(null);
