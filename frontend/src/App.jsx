@@ -33,15 +33,14 @@ function authFetch(url, opts={}) {
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 const s = {
   app:{display:'flex',minHeight:'100vh'},
-  sidebar:{width:240,background:'var(--sidebar-bg)',color:'var(--sidebar-text)',display:'flex',flexDirection:'column',padding:'0 0 24px',flexShrink:0,position:'sticky',top:0,height:'100vh',overflow:'auto'},
-  logo:{padding:'28px 24px 20px',borderBottom:'1px solid rgba(255,255,255,0.1)',marginBottom:8},
-  logoTitle:{fontSize:22,color:'var(--gold-light)',fontFamily:"'DM Serif Display',serif"},
-  logoSub:{fontSize:11,color:'rgba(255,255,255,0.4)',marginTop:2,letterSpacing:'0.08em',textTransform:'uppercase'},
-  navSection:{padding:'8px 12px',fontSize:11,color:'rgba(255,255,255,0.35)',letterSpacing:'0.1em',textTransform:'uppercase',marginTop:8},
-  navItem:(a)=>({padding:'10px 20px',display:'flex',alignItems:'center',gap:10,cursor:'pointer',borderRadius:8,margin:'1px 8px',background:a?'rgba(201,151,58,0.15)':'transparent',color:a?'var(--gold-light)':'rgba(255,255,255,0.65)',fontSize:14,fontWeight:a?600:400,borderLeft:a?'3px solid var(--gold)':'3px solid transparent'}),
-  loanPicker:{padding:'12px',borderTop:'1px solid rgba(255,255,255,0.1)',marginTop:'auto'},
-  loanPickerLabel:{fontSize:11,color:'rgba(255,255,255,0.4)',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:6},
-  sidebarSelect:{width:'100%',padding:'8px 10px',background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:8,color:'var(--sidebar-text)',fontSize:13},
+  sidebar:{width:248,background:'var(--sidebar-bg)',color:'var(--sidebar-text)',display:'flex',flexDirection:'column',padding:'0 0 0',flexShrink:0,position:'sticky',top:0,height:'100vh',overflow:'auto'},
+  logo:{padding:'24px 20px 16px',borderBottom:'1px solid rgba(255,255,255,0.1)',marginBottom:4},
+  logoTitle:{fontSize:21,color:'var(--gold-light)',fontFamily:"'DM Serif Display',serif"},
+  logoSub:{fontSize:10,color:'rgba(255,255,255,0.4)',marginTop:2,letterSpacing:'0.08em',textTransform:'uppercase'},
+  navGroup:{padding:'10px 12px 2px',fontSize:10,color:'rgba(255,255,255,0.3)',letterSpacing:'0.12em',textTransform:'uppercase',marginTop:6},
+  navItem:(a,color)=>({padding:'8px 16px',display:'flex',alignItems:'center',gap:9,cursor:'pointer',borderRadius:7,margin:'1px 6px',background:a?'rgba(201,151,58,0.15)':'transparent',color:a?(color||'var(--gold-light)'):'rgba(255,255,255,0.6)',fontSize:13,fontWeight:a?600:400,borderLeft:a?`3px solid ${color||'var(--gold)'}`:'3px solid transparent',transition:'all 0.15s'}),
+  navDivider:{height:1,background:'rgba(255,255,255,0.07)',margin:'6px 12px'},
+  githubLink:{display:'flex',alignItems:'center',gap:8,padding:'10px 16px',margin:'0 6px 4px',borderRadius:7,color:'rgba(255,255,255,0.35)',fontSize:12,textDecoration:'none',cursor:'pointer',transition:'color 0.15s'},
   main:{flex:1,padding:'32px 40px',overflow:'auto',background:'var(--cream)'},
   pageHeader:{marginBottom:28},
   pageTitle:{fontSize:28,color:'var(--ink)'},
@@ -49,7 +48,7 @@ const s = {
   card:{background:'var(--card)',borderRadius:'var(--radius)',padding:'20px 24px',boxShadow:'var(--shadow)',border:'1px solid var(--border)'},
   statCard:(c)=>({background:'var(--card)',borderRadius:'var(--radius)',padding:'20px 24px',boxShadow:'var(--shadow)',border:'1px solid var(--border)',borderTop:`3px solid ${c||'var(--gold)'}`}),
   statLabel:{fontSize:12,color:'var(--warm-gray)',textTransform:'uppercase',letterSpacing:'0.08em'},
-  statValue:{fontSize:26,fontFamily:"'DM Serif Display',serif",marginTop:4,color:'var(--ink)'},
+  statValue:{fontSize:24,fontFamily:"'DM Serif Display',serif",marginTop:4,color:'var(--ink)'},
   statSub:{fontSize:12,color:'var(--warm-gray)',marginTop:4},
   sectionTitle:{fontSize:18,marginBottom:16,color:'var(--ink)'},
   btn:(v)=>({padding:v==='sm'?'7px 14px':'10px 20px',fontSize:v==='sm'?13:14,fontWeight:500,borderRadius:8,cursor:'pointer',background:v==='danger'?'var(--terracotta)':v==='ghost'||v==='outline'?'transparent':'var(--gold)',color:v==='ghost'?'var(--warm-gray)':v==='outline'?'var(--gold)':'white',border:v==='outline'?'1px solid var(--gold)':v==='ghost'?'1px solid var(--border)':'none'}),
@@ -62,7 +61,6 @@ const s = {
   uploadZone:{border:'2px dashed var(--gold)',borderRadius:'var(--radius)',padding:'24px',textAlign:'center',cursor:'pointer',background:'rgba(201,151,58,0.04)'},
 };
 function Field({label,children}){return <div><label style={s.label}>{label}</label>{children}</div>;}
-
 // ─── PASSWORD RESET ───────────────────────────────────────────────────────────
 function ResetPasswordPage({token,onDone}){
   const [status,setStatus]=useState('loading');
@@ -375,37 +373,6 @@ function PaymentForm({loanId,hasEscrow,initial={},onSave,onCancel}){
   );
 }
 
-// ─── DASHBOARD ────────────────────────────────────────────────────────────────
-function Dashboard({selectedLoan,analytics,payments}){
-  if(!selectedLoan||!analytics)return(<div><div style={s.pageHeader}><h1 style={s.pageTitle}>Welcome to PayoffIQ</h1><p style={s.pageSub}>Select or create a loan to get started</p></div><div style={{...s.card,textAlign:'center',padding:'60px 40px'}}><div style={{fontSize:48,marginBottom:16}}>🏠</div><h2 style={{fontFamily:"'DM Serif Display',serif",marginBottom:8,color:'var(--ink)'}}>No Loan Selected</h2><p style={{color:'var(--warm-gray)'}}>Go to Manage Loans in the sidebar to add your first loan</p></div></div>);
-  const a=analytics,loan=a.loan,lt=loanTypeInfo(loan.loan_type);
-  const progress=((parseFloat(loan.original_amount)-a.currentBalance)/parseFloat(loan.original_amount))*100;
-  const chartData=payments.map((p,i)=>({month:p.statement_month||`#${i+1}`,principal:parseFloat(p.principal),interest:parseFloat(p.interest),escrow:parseFloat(p.escrow),extra:parseFloat(p.extra_principal),balance:parseFloat(p.ending_balance||0)})).slice(-24);
-  const hasEscrow=lt.hasEscrow;
-  return(
-    <div>
-      <div style={s.pageHeader}><h1 style={s.pageTitle}>{lt.icon} {loan.name}</h1><p style={s.pageSub}>{lt.label} · {parseFloat(loan.interest_rate)}% · {parseInt(loan.loan_term_months)/12}yr · Started {fmtDate(loan.start_date)}</p></div>
-      <div style={{...s.card,marginBottom:20}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:10}}><span style={{fontSize:14,fontWeight:600,color:'var(--ink)'}}>Loan Payoff Progress</span><span style={{fontSize:22,fontFamily:"'DM Serif Display',serif",color:'var(--gold)'}}>{progress.toFixed(1)}%</span></div>
-        <div style={{height:12,borderRadius:6,background:'var(--surface)',overflow:'hidden'}}><div style={{width:`${Math.min(progress,100)}%`,height:'100%',background:'linear-gradient(to right,var(--gold),var(--gold-light))',borderRadius:6}}/></div>
-        <div style={{display:'flex',justifyContent:'space-between',marginTop:8,fontSize:12,color:'var(--warm-gray)'}}><span>{fmt(parseFloat(loan.original_amount)-a.currentBalance)} paid</span><span>{fmt(a.currentBalance)} remaining</span></div>
-      </div>
-      <div className="stat-grid-4" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:16,marginBottom:20}}>
-        <div style={s.statCard('var(--gold)')}><div style={s.statLabel}>Current Balance</div><div style={s.statValue}>{fmt(a.currentBalance)}</div><div style={s.statSub}>{fmt(loan.original_amount)} original</div></div>
-        <div style={s.statCard('var(--sage)')}><div style={s.statLabel}>Projected Payoff</div><div style={s.statValue}>{fmtDate(a.projectedPayoffDate)}</div><div style={s.statSub}>{fmtMonths(a.projectedMonths)} remaining</div></div>
-        <div style={s.statCard('var(--terracotta)')}><div style={s.statLabel}>Total Interest Paid</div><div style={s.statValue}>{fmt(a.totalInterestPaid)}</div><div style={s.statSub}>{fmt(a.projectedRemainingInterest)} remaining</div></div>
-        {hasEscrow?<div style={s.statCard('var(--chart-escrow)')}><div style={s.statLabel}>Total Escrow Paid</div><div style={s.statValue}>{fmt(a.totalEscrowPaid)}</div><div style={s.statSub}>{a.paymentCount} payments</div></div>
-        :<div style={s.statCard('#7B8FA1')}><div style={s.statLabel}>Payments Made</div><div style={s.statValue}>{a.paymentCount}</div><div style={s.statSub}>{fmt(a.totalPaid)} total paid</div></div>}
-      </div>
-      {chartData.length>0&&(<div className="chart-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:20}}>
-        <div style={s.card}><h3 style={s.sectionTitle}>Payment Breakdown</h3><ResponsiveContainer width="100%" height={220}><BarChart data={chartData} margin={{top:0,right:0,left:-20,bottom:0}}><CartesianGrid strokeDasharray="3 3" stroke="var(--border)"/><XAxis dataKey="month" tick={{fontSize:10,fill:'var(--warm-gray)'}}/><YAxis tick={{fontSize:10,fill:'var(--warm-gray)'}}/><Tooltip formatter={v=>fmt(v)} contentStyle={{background:'var(--card)',border:'1px solid var(--border)',color:'var(--ink)'}}/><Legend/><Bar dataKey="principal" fill="var(--gold)" name="Principal" stackId="a"/><Bar dataKey="interest" fill="var(--terracotta)" name="Interest" stackId="a"/>{hasEscrow&&<Bar dataKey="escrow" fill="var(--chart-escrow)" name="Escrow" stackId="a"/>}<Bar dataKey="extra" fill="var(--sage)" name="Extra" stackId="a"/></BarChart></ResponsiveContainer></div>
-        <div style={s.card}><h3 style={s.sectionTitle}>Balance Over Time</h3><ResponsiveContainer width="100%" height={220}><AreaChart data={chartData} margin={{top:0,right:0,left:-20,bottom:0}}><defs><linearGradient id="balGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--gold)" stopOpacity={0.2}/><stop offset="95%" stopColor="var(--gold)" stopOpacity={0}/></linearGradient></defs><CartesianGrid strokeDasharray="3 3" stroke="var(--border)"/><XAxis dataKey="month" tick={{fontSize:10,fill:'var(--warm-gray)'}}/><YAxis tick={{fontSize:10,fill:'var(--warm-gray)'}}/><Tooltip formatter={v=>fmt(v)} contentStyle={{background:'var(--card)',border:'1px solid var(--border)',color:'var(--ink)'}}/><Area type="monotone" dataKey="balance" stroke="var(--gold)" fill="url(#balGrad)" name="Balance"/></AreaChart></ResponsiveContainer></div>
-      </div>)}
-      <div style={s.card}><h3 style={s.sectionTitle}>Loan Summary</h3><div className="stat-grid-3" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12}}>{[['Monthly Payment',fmt(loan.monthly_payment)],['Payments Made',a.paymentCount],['Months Ahead',a.monthsAhead>0?`${a.monthsAhead} months`:'On track'],['Total Paid',fmt(a.totalPaid)],['Total Principal Paid',fmt(a.totalPrincipalPaid)],['Original Total Interest',fmt(a.originalTotalInterest)]].map(([l,v])=>(<div key={l} style={{padding:'12px',background:'var(--surface)',borderRadius:8}}><div style={{fontSize:11,color:'var(--warm-gray)',textTransform:'uppercase',letterSpacing:'0.06em'}}>{l}</div><div style={{fontSize:18,fontFamily:"'DM Serif Display',serif",marginTop:2,color:'var(--ink)'}}>{v}</div></div>))}</div></div>
-    </div>
-  );
-}
-
 // ─── PAYMENTS VIEW ────────────────────────────────────────────────────────────
 function PaymentsView({loan,payments,onRefresh,onNavigateToDocuments}){
   const [showForm,setShowForm]=useState(false);
@@ -427,7 +394,7 @@ function PaymentsView({loan,payments,onRefresh,onNavigateToDocuments}){
   return(
     <div>
       <div className="page-header-row" style={{...s.pageHeader,display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-        <div><h1 style={s.pageTitle}>Payment History</h1><p style={s.pageSub}>{payments.length} payments for {loan.name}</p></div>
+        <div><h1 style={s.pageTitle}>💳 Payment History</h1><p style={s.pageSub}>{payments.length} payments for {loan.name}</p></div>
         <button style={s.btn()} onClick={()=>{setEditPayment(null);setShowForm(true);}}>+ Add Payment</button>
       </div>
       {showForm&&(<div style={{...s.card,marginBottom:20}}><h3 style={{...s.sectionTitle,marginBottom:20}}>{editPayment?'Edit Payment':'Add Payment'}</h3><PaymentForm loanId={loan.id} hasEscrow={lt.hasEscrow} initial={editPayment||{}} onSave={savePayment} onCancel={()=>{setShowForm(false);setEditPayment(null);}}/></div>)}
@@ -459,50 +426,6 @@ function PaymentsView({loan,payments,onRefresh,onNavigateToDocuments}){
     </div>
   );
 }
-
-// ─── DOCUMENTS VIEW ───────────────────────────────────────────────────────────
-function DocumentsView({loan,onNavigateToPayments}){
-  const [docs,setDocs]=useState([]);
-  const [refresh,setRefresh]=useState(0);
-  const load=()=>authFetch(`${API}/loans/${loan.id}/all-documents`).then(r=>r.json()).then(setDocs);
-  useEffect(()=>{if(loan)load();},[loan?.id,refresh]);
-  const del=async(id)=>{if(!confirm('Delete?'))return;await authFetch(`${API}/documents/${id}`,{method:'DELETE'});load();};
-  const icon=(name)=>/\.(jpg|jpeg|png|gif|webp|heic|heif)$/i.test(name)?'🖼️':'📄';
-  if(!loan)return<div style={s.card}><p style={{color:'var(--warm-gray)'}}>Select a loan first</p></div>;
-  return(
-    <div>
-      <div style={s.pageHeader}><h1 style={s.pageTitle}>Documents</h1><p style={s.pageSub}>All files attached to {loan.name}</p></div>
-      <div style={{...s.card,marginBottom:20}}>
-        <h3 style={{...s.sectionTitle,marginBottom:4}}>Upload Loan Document</h3>
-        <p style={{fontSize:13,color:'var(--warm-gray)',marginBottom:16}}>Attach documents to this loan (not tied to a specific payment).</p>
-        <DocumentUploader loanId={loan.id} onUploaded={()=>setRefresh(x=>x+1)}/>
-      </div>
-      <div style={s.card}>
-        <h3 style={s.sectionTitle}>All Documents ({docs.length})</h3>
-        {docs.length===0?<p style={{color:'var(--warm-gray)',fontSize:13}}>No documents uploaded yet.</p>:(
-          <table style={s.table}>
-            <thead><tr><th style={s.th}>File</th><th style={s.th}>Type</th><th style={s.th}>Linked Payment</th><th style={s.th}>Uploaded</th><th style={s.th}></th></tr></thead>
-            <tbody>{docs.map(d=>(<tr key={d.id}>
-              <td style={s.td}><a href={`/statements/${d.filename}`} target="_blank" rel="noreferrer" style={{color:'var(--gold)',textDecoration:'none',display:'flex',alignItems:'center',gap:6}}>{icon(d.original_name)} {d.description||d.original_name}</a></td>
-              <td style={s.td}><span style={s.badge('blue')}>{d.doc_type}</span></td>
-              <td style={s.td}>
-                {d.payment_date?(
-                  <div style={{display:'flex',alignItems:'center',gap:8}}>
-                    <span>{fmtDate(d.payment_date)}{d.statement_month?` (${d.statement_month})`:''}</span>
-                    {onNavigateToPayments&&<button style={{background:'none',border:'1px solid var(--border)',borderRadius:4,fontSize:10,color:'var(--gold)',cursor:'pointer',padding:'2px 6px'}} onClick={onNavigateToPayments}>→ View in Payments</button>}
-                  </div>
-                ):<span style={{color:'var(--warm-gray)'}}>Loan-level</span>}
-              </td>
-              <td style={s.td}>{new Date(d.uploaded_at).toLocaleDateString()}</td>
-              <td style={s.td}><button style={{...s.btn('sm'),background:'#FEF3F0',color:'var(--terracotta)'}} onClick={()=>del(d.id)}>Del</button></td>
-            </tr>))}</tbody>
-          </table>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ─── CALCULATOR ───────────────────────────────────────────────────────────────
 function ScenarioResult({label,color,scenario,savings}){
   if(!scenario)return null;
@@ -1014,6 +937,300 @@ function BillsView(){
   );
 }
 
+// ─── BILLS VIEW ───────────────────────────────────────────────────────────────
+const BILL_PRESETS = [
+  {name:'Electric',icon:'⚡',color:'#F59E0B',custom_fields:[{key:'usage_kwh',label:'Usage (kWh)',type:'number'},{key:'rate_per_kwh',label:'Rate ($/kWh)',type:'number'}]},
+  {name:'Internet',icon:'🌐',color:'#3B82F6',custom_fields:[{key:'data_gb',label:'Data Used (GB)',type:'number'},{key:'plan_speed',label:'Plan Speed (Mbps)',type:'number'}]},
+  {name:'Water',icon:'💧',color:'#06B6D4',custom_fields:[{key:'usage_gallons',label:'Usage (gallons)',type:'number'},{key:'usage_hcf',label:'Usage (HCF)',type:'number'}]},
+  {name:'TV/Cable/Streaming',icon:'📺',color:'#8B5CF6',custom_fields:[{key:'num_services',label:'# Services',type:'number'}]},
+  {name:'Home Insurance',icon:'🏠',color:'#10B981',custom_fields:[{key:'coverage_amount',label:'Coverage ($)',type:'number'},{key:'deductible',label:'Deductible ($)',type:'number'}]},
+  {name:'Flood Insurance',icon:'🌊',color:'#0EA5E9',custom_fields:[{key:'coverage_amount',label:'Coverage ($)',type:'number'}]},
+  {name:'Auto Insurance',icon:'🚗',color:'#F97316',custom_fields:[{key:'vehicles',label:'# Vehicles',type:'number'},{key:'deductible',label:'Deductible ($)',type:'number'}]},
+  {name:'Gas',icon:'🔥',color:'#EF4444',custom_fields:[{key:'usage_therms',label:'Usage (therms)',type:'number'}]},
+  {name:'Phone',icon:'📱',color:'#6366F1',custom_fields:[{key:'lines',label:'# Lines',type:'number'},{key:'data_gb',label:'Data (GB)',type:'number'}]},
+  {name:'Other',icon:'💼',color:'#64748B',custom_fields:[]},
+];
+
+const BILL_CYCLES=[{id:'monthly',label:'Monthly'},{id:'quarterly',label:'Quarterly'},{id:'biannual',label:'Every 6 Months'},{id:'annual',label:'Annual'}];
+
+function BillsView({initialCatId}){
+  const [categories,setCategories]=useState([]);
+  const [bills,setBills]=useState([]);
+  const [selectedCat,setSelectedCat]=useState(null);
+  const [showCatForm,setShowCatForm]=useState(false);
+  const [showBillForm,setShowBillForm]=useState(false);
+  const [catForm,setCatForm]=useState({name:'',icon:'💡',color:'#7B8FA1',custom_fields:[],cycle:'monthly'});
+  const [billForm,setBillForm]=useState({category_id:'',bill_date:'',amount:'',due_date:'',paid:false,notes:'',custom_data:{}});
+  const [provider,setProvider]=useState('claude');
+  const [analyzing,setAnalyzing]=useState(false);
+  const [analyzeResult,setAnalyzeResult]=useState(null);
+  const [docRefresh,setDocRefresh]=useState(0);
+  const [activePreset,setActivePreset]=useState(null);
+  const PROVIDERS=[{id:'claude',label:'Claude'},{id:'openai',label:'ChatGPT'},{id:'gemini',label:'Gemini'},{id:'copilot',label:'Copilot'}];
+
+  const loadCats=()=>authFetch(`${API}/bills/categories`).then(r=>r.json()).then(cats=>{setCategories(cats);if(initialCatId){const c=cats.find(x=>x.id===initialCatId);if(c)setSelectedCat(c);}});
+  const loadBills=(catId)=>{
+    const url=catId?`${API}/bills?category_id=${catId}`:`${API}/bills`;
+    authFetch(url).then(r=>r.json()).then(setBills);
+  };
+  useEffect(()=>{loadCats();},[]);
+  useEffect(()=>{loadBills(selectedCat?.id);},[selectedCat]);
+
+  const saveCat=async()=>{
+    const method=catForm.id?'PUT':'POST';
+    const url=catForm.id?`${API}/bills/categories/${catForm.id}`:`${API}/bills/categories`;
+    await authFetch(url,{method,body:JSON.stringify({...catForm,custom_fields:catForm.custom_fields})});
+    setShowCatForm(false);loadCats();
+  };
+  const delCat=async(id)=>{if(!confirm('Delete this category and all bills?'))return;await authFetch(`${API}/bills/categories/${id}`,{method:'DELETE'});loadCats();if(selectedCat?.id===id)setSelectedCat(null);};
+  const saveBill=async()=>{
+    if(!billForm.category_id)return;
+    await authFetch(`${API}/bills`,{method:'POST',body:JSON.stringify(billForm)});
+    setShowBillForm(false);setBillForm({category_id:selectedCat?.id||'',bill_date:'',amount:'',due_date:'',paid:false,notes:'',custom_data:{}});
+    setAnalyzeResult(null);loadBills(selectedCat?.id);
+  };
+  const delBill=async(id)=>{if(!confirm('Delete?'))return;await authFetch(`${API}/bills/${id}`,{method:'DELETE'});loadBills(selectedCat?.id);};
+  const togglePaid=async(bill)=>{await authFetch(`${API}/bills/${bill.id}`,{method:'PUT',body:JSON.stringify({...bill,paid:!bill.paid,custom_data:bill.custom_data?JSON.parse(bill.custom_data):{}})});loadBills(selectedCat?.id);};
+
+  const analyzeBillPDF=async(file,catId)=>{
+    setAnalyzing(true);setAnalyzeResult(null);
+    const fd=new FormData();fd.append('pdf',file);fd.append('provider',provider);
+    const r=await authFetch(`${API}/bills/${catId}/analyze-pdf`,{method:'POST',body:fd});
+    const data=await r.json();
+    if(data.success){
+      const e=data.extracted;setAnalyzeResult(e);
+      const cat=categories.find(c=>c.id===catId);
+      const fields=cat?.custom_fields?JSON.parse(cat.custom_fields):[];
+      const custom_data={};
+      fields.forEach(f=>{if(e[f.key]!=null)custom_data[f.key]=e[f.key];});
+      setBillForm(prev=>({...prev,category_id:catId,bill_date:e.bill_date||prev.bill_date,amount:e.amount||prev.amount,due_date:e.due_date||prev.due_date,notes:e.notes||prev.notes,custom_data}));
+    }else setAnalyzeResult({error:data.error});
+    setAnalyzing(false);
+  };
+
+  const catBills=bills.filter(b=>!selectedCat||b.category_id===selectedCat.id);
+
+  const getCustomFields=(cat)=>{
+    if(!cat?.custom_fields)return[];
+    try{return JSON.parse(cat.custom_fields);}catch{return[];}
+  };
+
+  const usePreset=(preset)=>{
+    setCatForm({name:preset.name,icon:preset.icon,color:preset.color,custom_fields:preset.custom_fields,cycle:'monthly'});
+    setActivePreset(preset.name);
+  };
+
+  // Build chart data grouped by billing cycle
+  const buildChartData=(cat,billList)=>{
+    if(!cat||!billList.length)return[];
+    const cycle=cat.cycle||'monthly';
+    const grouped={};
+    billList.forEach(b=>{
+      let key=b.bill_date?.slice(0,7)||'';
+      if(cycle==='quarterly'){const m=parseInt(b.bill_date?.slice(5,7));const q=Math.ceil(m/3);key=`${b.bill_date?.slice(0,4)}-Q${q}`;}
+      else if(cycle==='biannual'){const m=parseInt(b.bill_date?.slice(5,7));const h=m<=6?'H1':'H2';key=`${b.bill_date?.slice(0,4)}-${h}`;}
+      else if(cycle==='annual'){key=b.bill_date?.slice(0,4)||'';}
+      if(!grouped[key])grouped[key]={date:key,amount:0};
+      grouped[key].amount+=parseFloat(b.amount||0);
+      const cd=b.custom_data?JSON.parse(b.custom_data):{};
+      const fields=getCustomFields(cat);
+      fields.forEach(f=>{if(cd[f.key]!=null){if(!grouped[key][f.key])grouped[key][f.key]=0;grouped[key][f.key]+=parseFloat(cd[f.key]||0);}});
+    });
+    return Object.values(grouped).sort((a,b)=>a.date.localeCompare(b.date));
+  };
+
+  return(
+    <div>
+      <div className="page-header-row" style={{...s.pageHeader,display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+        <div><h1 style={s.pageTitle}>💡 Household Bills</h1><p style={s.pageSub}>Track and analyze all your recurring bills</p></div>
+        <button style={s.btn()} onClick={()=>{setCatForm({name:'',icon:'💡',color:'#7B8FA1',custom_fields:[],cycle:'monthly'});setActivePreset(null);setShowCatForm(!showCatForm);}}>+ Add Bill Category</button>
+      </div>
+
+      {/* Category Form */}
+      {showCatForm&&(<div style={{...s.card,marginBottom:20}}>
+        <h3 style={{...s.sectionTitle,marginBottom:12}}>Add Bill Category</h3>
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:12,color:'var(--warm-gray)',marginBottom:8,fontWeight:500}}>Quick Presets</div>
+          <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+            {BILL_PRESETS.map(p=>(<button key={p.name} style={{padding:'6px 12px',borderRadius:6,fontSize:12,cursor:'pointer',border:`2px solid ${activePreset===p.name?p.color:'var(--border)'}`,background:activePreset===p.name?p.color+'20':'var(--surface)',color:'var(--ink)',fontWeight:activePreset===p.name?600:400}} onClick={()=>usePreset(p)}>{p.icon} {p.name}</button>))}
+          </div>
+        </div>
+        <div className="form-grid-2" style={{display:'grid',gridTemplateColumns:'1fr 80px 80px 150px',gap:12,alignItems:'flex-end',marginBottom:12}}>
+          <Field label="Category Name"><input style={s.input} value={catForm.name} onChange={e=>setCatForm(f=>({...f,name:e.target.value}))} placeholder="e.g. Electric"/></Field>
+          <Field label="Icon"><input style={s.input} value={catForm.icon} onChange={e=>setCatForm(f=>({...f,icon:e.target.value}))} placeholder="💡"/></Field>
+          <Field label="Color"><input type="color" style={{...s.input,padding:'4px',height:42,cursor:'pointer'}} value={catForm.color} onChange={e=>setCatForm(f=>({...f,color:e.target.value}))}/></Field>
+          <Field label="Billing Cycle">
+            <select style={s.input} value={catForm.cycle||'monthly'} onChange={e=>setCatForm(f=>({...f,cycle:e.target.value}))}>
+              {BILL_CYCLES.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
+            </select>
+          </Field>
+        </div>
+        <button style={s.btn()} onClick={saveCat}>Save Category</button>
+        {catForm.custom_fields?.length>0&&(<div style={{marginTop:12,padding:12,background:'var(--surface)',borderRadius:8}}>
+          <div style={{fontSize:12,fontWeight:600,marginBottom:6,color:'var(--ink)'}}>Custom Tracking Fields</div>
+          <div style={{display:'flex',flexWrap:'wrap',gap:6}}>{catForm.custom_fields.map(f=>(<span key={f.key} style={{padding:'3px 8px',background:'var(--card)',border:'1px solid var(--border)',borderRadius:4,fontSize:11,color:'var(--ink)'}}>{f.label}</span>))}</div>
+        </div>)}
+      </div>)}
+
+      {/* Category Cards */}
+      {categories.length>0&&(<div style={{display:'flex',gap:10,flexWrap:'wrap',marginBottom:20}}>
+        <div onClick={()=>setSelectedCat(null)} style={{padding:'12px 16px',borderRadius:10,cursor:'pointer',border:`2px solid ${!selectedCat?'var(--gold)':'var(--border)'}`,background:!selectedCat?'rgba(201,151,58,0.08)':'var(--card)',minWidth:80,textAlign:'center'}}>
+          <div style={{fontSize:20,marginBottom:2}}>📋</div><div style={{fontSize:12,fontWeight:!selectedCat?600:400,color:!selectedCat?'var(--gold)':'var(--ink)'}}>All Bills</div>
+        </div>
+        {categories.map(c=>{
+          const catBillCount=bills.filter(b=>b.category_id===c.id).length;
+          const cycle=BILL_CYCLES.find(x=>x.id===(c.cycle||'monthly'))?.label||'Monthly';
+          return(<div key={c.id} style={{position:'relative'}}>
+            <div onClick={()=>setSelectedCat(c)} style={{padding:'12px 16px',borderRadius:10,cursor:'pointer',border:`2px solid ${selectedCat?.id===c.id?c.color:'var(--border)'}`,background:selectedCat?.id===c.id?c.color+'15':'var(--card)',minWidth:110,textAlign:'center'}}>
+              <div style={{fontSize:20,marginBottom:2}}>{c.icon}</div>
+              <div style={{fontSize:12,fontWeight:selectedCat?.id===c.id?600:400,color:selectedCat?.id===c.id?c.color:'var(--ink)'}}>{c.name}</div>
+              <div style={{fontSize:10,color:'var(--warm-gray)',marginTop:2}}>{catBillCount} entries · {cycle}</div>
+            </div>
+            <button onClick={(e)=>{e.stopPropagation();delCat(c.id);}} style={{position:'absolute',top:-6,right:-6,background:'var(--terracotta)',color:'white',border:'none',borderRadius:'50%',width:18,height:18,fontSize:10,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+          </div>);
+        })}
+      </div>)}
+
+      {/* Bill Form */}
+      {(selectedCat||categories.length>0)&&(<div style={{...s.card,marginBottom:20}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:showBillForm?16:0}}>
+          <h3 style={{...s.sectionTitle,marginBottom:0}}>Add Bill Entry</h3>
+          <button style={s.btn('outline')} onClick={()=>{setShowBillForm(!showBillForm);setBillForm({category_id:selectedCat?.id||'',bill_date:new Date().toISOString().split('T')[0],amount:'',due_date:'',paid:false,notes:'',custom_data:{}});setAnalyzeResult(null);}}>+ Add Entry</button>
+        </div>
+        {showBillForm&&(<div>
+          <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:16}}>
+            {categories.map(c=>(<button key={c.id} onClick={()=>setBillForm(f=>({...f,category_id:c.id,custom_data:{}}))} style={{padding:'6px 12px',borderRadius:6,fontSize:12,cursor:'pointer',border:`2px solid ${billForm.category_id===c.id?c.color:'var(--border)'}`,background:billForm.category_id===c.id?c.color+'20':'var(--surface)',color:'var(--ink)'}}>{c.icon} {c.name}</button>))}
+          </div>
+          {billForm.category_id&&(<>
+            <div style={{padding:16,borderRadius:10,border:'1px solid var(--gold)',background:'rgba(201,151,58,0.04)',marginBottom:12}}>
+              <div style={{fontWeight:600,fontSize:13,color:'var(--gold)',marginBottom:10}}>🤖 AI Bill Extraction</div>
+              <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+                <select value={provider} onChange={e=>setProvider(e.target.value)} style={{padding:'6px 10px',fontSize:13,borderRadius:6,border:'1px solid var(--border)',background:'var(--surface)',color:'var(--ink)'}}>{PROVIDERS.map(p=><option key={p.id} value={p.id}>{p.label}</option>)}</select>
+                <input type="file" id="billPdfAI" accept=".pdf" style={{display:'none'}} onChange={e=>e.target.files[0]&&analyzeBillPDF(e.target.files[0],billForm.category_id)}/>
+                <button style={s.btn('outline')} onClick={()=>document.getElementById('billPdfAI').click()} disabled={analyzing}>{analyzing?'⏳ Analyzing...':'📄 Upload & Analyze PDF'}</button>
+                {analyzeResult&&!analyzeResult.error&&<span style={{fontSize:12,color:'var(--sage)'}}>✓ Data extracted</span>}
+                {analyzeResult?.error&&<span style={{fontSize:12,color:'var(--terracotta)'}}>⚠ {analyzeResult.error}</span>}
+              </div>
+            </div>
+            <div className="form-grid-2" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
+              <Field label="Bill Date"><input style={s.input} type="date" value={billForm.bill_date} onChange={e=>setBillForm(f=>({...f,bill_date:e.target.value}))}/></Field>
+              <Field label="Amount ($)"><input style={s.input} type="number" value={billForm.amount} onChange={e=>setBillForm(f=>({...f,amount:e.target.value}))} placeholder="0.00"/></Field>
+              <Field label="Due Date (optional)"><input style={s.input} type="date" value={billForm.due_date} onChange={e=>setBillForm(f=>({...f,due_date:e.target.value}))}/></Field>
+              <Field label="Status"><div style={{display:'flex',alignItems:'center',gap:10,height:42}}><input type="checkbox" checked={billForm.paid} onChange={e=>setBillForm(f=>({...f,paid:e.target.checked}))} style={{width:18,height:18}}/><span style={{fontSize:14,color:'var(--ink)'}}>Paid</span></div></Field>
+            </div>
+            {(()=>{
+              const cat=categories.find(c=>c.id===billForm.category_id);
+              const fields=getCustomFields(cat);
+              if(!fields.length)return null;
+              return(<div style={{marginBottom:12}}>
+                <div style={{fontSize:12,fontWeight:600,color:'var(--ink)',marginBottom:8}}>Custom Fields</div>
+                <div className="form-grid-2" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                  {fields.map(f=>(<Field key={f.key} label={f.label}><input style={s.input} type={f.type||'text'} value={billForm.custom_data[f.key]||''} onChange={e=>setBillForm(prev=>({...prev,custom_data:{...prev.custom_data,[f.key]:e.target.value}}))}/></Field>))}
+                </div>
+              </div>);
+            })()}
+            <Field label="Notes"><input style={{...s.input,marginBottom:12}} value={billForm.notes} onChange={e=>setBillForm(f=>({...f,notes:e.target.value}))} placeholder="Optional notes"/></Field>
+            <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
+              <button style={s.btn('ghost')} onClick={()=>setShowBillForm(false)}>Cancel</button>
+              <button style={s.btn()} onClick={saveBill}>Save Bill</button>
+            </div>
+          </>)}
+        </div>)}
+      </div>)}
+
+      {/* Per-Category Analytics Charts */}
+      {selectedCat&&catBills.length>0&&(()=>{
+        const fields=getCustomFields(selectedCat);
+        const chartData=buildChartData(selectedCat,catBills);
+        const cycleLabel=BILL_CYCLES.find(c=>c.id===(selectedCat.cycle||'monthly'))?.label||'Monthly';
+        const totalSpend=catBills.reduce((s,b)=>s+parseFloat(b.amount||0),0);
+        const avgSpend=catBills.length>0?totalSpend/catBills.length:0;
+        const lastBill=catBills.sort((a,b)=>b.bill_date.localeCompare(a.bill_date))[0];
+        return(
+          <div style={{marginBottom:20}}>
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+              <span style={{fontSize:24}}>{selectedCat.icon}</span>
+              <div><h3 style={{...s.sectionTitle,marginBottom:0}}>{selectedCat.name} Analytics</h3><div style={{fontSize:12,color:'var(--warm-gray)'}}>{cycleLabel} billing</div></div>
+            </div>
+            {/* Stat row */}
+            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:16}}>
+              <div style={s.statCard(selectedCat.color)}><div style={s.statLabel}>Total Spent</div><div style={s.statValue}>{fmt(totalSpend)}</div><div style={s.statSub}>{catBills.length} entries</div></div>
+              <div style={s.statCard(selectedCat.color)}><div style={s.statLabel}>Avg per Cycle</div><div style={s.statValue}>{fmt(avgSpend)}</div><div style={s.statSub}>Per {cycleLabel.toLowerCase()}</div></div>
+              <div style={s.statCard(selectedCat.color)}><div style={s.statLabel}>Last Entry</div><div style={s.statValue}>{fmt(lastBill?.amount)}</div><div style={s.statSub}>{fmtDate(lastBill?.bill_date)}</div></div>
+            </div>
+            {/* Charts */}
+            {chartData.length>1&&(
+              <div style={{display:'grid',gridTemplateColumns:fields.length>0?'1fr 1fr':'1fr',gap:16,marginBottom:16}}>
+                <div style={s.card}>
+                  <div style={{fontSize:13,fontWeight:600,marginBottom:8,color:'var(--ink)'}}>Cost per {cycleLabel} Cycle</div>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <AreaChart data={chartData} margin={{top:0,right:0,left:-20,bottom:0}}>
+                      <defs><linearGradient id={`billGrad${selectedCat.id}`} x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={selectedCat.color} stopOpacity={0.3}/><stop offset="95%" stopColor={selectedCat.color} stopOpacity={0}/></linearGradient></defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)"/>
+                      <XAxis dataKey="date" tick={{fontSize:10,fill:'var(--warm-gray)'}}/>
+                      <YAxis tick={{fontSize:10,fill:'var(--warm-gray)'}}/>
+                      <Tooltip formatter={v=>fmt(v)} contentStyle={{background:'var(--card)',border:'1px solid var(--border)',color:'var(--ink)'}}/>
+                      <Area type="monotone" dataKey="amount" stroke={selectedCat.color} fill={`url(#billGrad${selectedCat.id})`} name="Amount"/>
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+                {fields.slice(0,3).map((f,fi)=>(
+                  <div key={f.key} style={s.card}>
+                    <div style={{fontSize:13,fontWeight:600,marginBottom:8,color:'var(--ink)'}}>{f.label} per Cycle</div>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <LineChart data={chartData} margin={{top:0,right:0,left:-20,bottom:0}}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)"/>
+                        <XAxis dataKey="date" tick={{fontSize:10,fill:'var(--warm-gray)'}}/>
+                        <YAxis tick={{fontSize:10,fill:'var(--warm-gray)'}}/>
+                        <Tooltip contentStyle={{background:'var(--card)',border:'1px solid var(--border)',color:'var(--ink)'}}/>
+                        <Line type="monotone" dataKey={f.key} stroke={['#3B82F6','#10B981','#F59E0B'][fi%3]} dot={{r:3}} name={f.label}/>
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* Bills Table */}
+      {catBills.length>0&&(<div style={s.card}>
+        <h3 style={s.sectionTitle}>{selectedCat?`${selectedCat.icon} ${selectedCat.name} Bills`:'All Bills'} ({catBills.length})</h3>
+        <div style={{overflowX:'auto'}}>
+          <table style={s.table}>
+            <thead><tr>
+              <th style={s.th}>Category</th><th style={s.th}>Date</th><th style={s.th}>Amount</th><th style={s.th}>Due</th>
+              <th style={s.th}>Status</th><th style={s.th}>Docs</th><th style={s.th}></th>
+            </tr></thead>
+            <tbody>{[...catBills].sort((a,b)=>b.bill_date.localeCompare(a.bill_date)).map(b=>{
+              const cat=categories.find(c=>c.id===b.category_id);
+              return(<tr key={b.id}>
+                <td style={s.td}><span style={{color:cat?.color||'var(--warm-gray)'}}>{cat?.icon||'💼'} {cat?.name||'Unknown'}</span></td>
+                <td style={s.td}>{fmtDate(b.bill_date)}</td>
+                <td style={{...s.td,fontWeight:600}}>{fmt(b.amount)}</td>
+                <td style={s.td}>{fmtDate(b.due_date)}</td>
+                <td style={s.td}><span style={s.badge(b.paid?'green':'orange')} onClick={()=>togglePaid(b)} title="Click to toggle">{b.paid?'✓ Paid':'Unpaid'}</span></td>
+                <td style={s.td}>
+                  <DocumentUploader billId={b.id} compact onUploaded={()=>setDocRefresh(x=>x+1)}/>
+                  <DocumentList billId={b.id} refresh={docRefresh}/>
+                </td>
+                <td style={s.td}><button style={{...s.btn('sm'),background:'#FEF3F0',color:'var(--terracotta)'}} onClick={()=>delBill(b.id)}>Del</button></td>
+              </tr>);
+            })}</tbody>
+          </table>
+        </div>
+      </div>)}
+
+      {categories.length===0&&(<div style={{...s.card,textAlign:'center',padding:'60px'}}>
+        <div style={{fontSize:48,marginBottom:16}}>💡</div>
+        <h2 style={{fontFamily:"'DM Serif Display',serif",marginBottom:8,color:'var(--ink)'}}>No Bill Categories Yet</h2>
+        <p style={{color:'var(--warm-gray)',marginBottom:20}}>Add a category to start tracking bills like electricity, water, or insurance.</p>
+        <button style={s.btn()} onClick={()=>setShowCatForm(true)}>Add Your First Category</button>
+      </div>)}
+    </div>
+  );
+}
 // ─── LOANS MANAGER ────────────────────────────────────────────────────────────
 function LoansManager({loans,onRefresh,onSelect}){
   const [showForm,setShowForm]=useState(false);
@@ -1088,78 +1305,510 @@ function Settings({theme,setTheme,onLogout}){
   );
 }
 
+// ─── GLOBAL DASHBOARD ─────────────────────────────────────────────────────────
+function Dashboard({loans,navigate}){
+  const [data,setData]=useState(null);
+  const [loading,setLoading]=useState(true);
+  useEffect(()=>{
+    authFetch(`${API}/dashboard`).then(r=>r.json()).then(d=>{setData(d);setLoading(false);}).catch(()=>setLoading(false));
+  },[]);
+
+  if(loading)return<div style={s.card}><p style={{color:'var(--warm-gray)'}}>Loading dashboard...</p></div>;
+  if(!data||!data.loanSummaries)return<div style={s.card}><p style={{color:'var(--warm-gray)'}}>No data yet. Add a loan to get started.</p></div>;
+
+  const {loanSummaries,paymentTimeline,billSummary,billTimeline,billCategories}=data;
+  const totalBalance=loanSummaries.reduce((s,l)=>s+l.currentBalance,0);
+  const totalPaid=loanSummaries.reduce((s,l)=>s+l.totalPaid,0);
+  const totalInterest=loanSummaries.reduce((s,l)=>s+l.totalInterest,0);
+  const totalBillSpend=billSummary.reduce((s,b)=>s+b.totalSpent,0);
+
+  const LOAN_COLORS=['#C9973A','#4A6741','#7B4F3A','#3B82F6','#8B5CF6'];
+
+  return(
+    <div>
+      <div style={s.pageHeader}><h1 style={s.pageTitle}>📊 Dashboard</h1><p style={s.pageSub}>Overview of all loans and household bills</p></div>
+
+      {/* Summary stat cards */}
+      <div className="stat-grid-4" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:16,marginBottom:20}}>
+        <div style={s.statCard('var(--gold)')}><div style={s.statLabel}>Total Loan Balance</div><div style={s.statValue}>{fmt(totalBalance)}</div><div style={s.statSub}>{loanSummaries.length} active loan{loanSummaries.length!==1?'s':''}</div></div>
+        <div style={s.statCard('var(--sage)')}><div style={s.statLabel}>Total Amount Paid</div><div style={s.statValue}>{fmt(totalPaid)}</div><div style={s.statSub}>Across all loans</div></div>
+        <div style={s.statCard('var(--terracotta)')}><div style={s.statLabel}>Total Interest Paid</div><div style={s.statValue}>{fmt(totalInterest)}</div><div style={s.statSub}>All loans combined</div></div>
+        <div style={s.statCard('#3B82F6')}><div style={s.statLabel}>Total Bills Tracked</div><div style={s.statValue}>{fmt(totalBillSpend)}</div><div style={s.statSub}>{billSummary.length} categories</div></div>
+      </div>
+
+      {/* Combined payment timeline */}
+      {paymentTimeline.length>1&&(
+        <div style={{...s.card,marginBottom:20}}>
+          <h3 style={s.sectionTitle}>All Loan Payments Over Time</h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={paymentTimeline} margin={{top:0,right:0,left:-20,bottom:0}}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)"/>
+              <XAxis dataKey="month" tick={{fontSize:10,fill:'var(--warm-gray)'}}/>
+              <YAxis tick={{fontSize:10,fill:'var(--warm-gray)'}}/>
+              <Tooltip formatter={v=>fmt(v)} contentStyle={{background:'var(--card)',border:'1px solid var(--border)',color:'var(--ink)'}}/>
+              <Legend/>
+              <Bar dataKey="principal" fill="var(--gold)" name="Principal" stackId="a"/>
+              <Bar dataKey="interest" fill="var(--terracotta)" name="Interest" stackId="a"/>
+              <Bar dataKey="escrow" fill="var(--chart-escrow)" name="Escrow" stackId="a"/>
+              <Bar dataKey="extra" fill="var(--sage)" name="Extra" stackId="a"/>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Per-loan summary cards */}
+      {loanSummaries.length>0&&(
+        <div style={{marginBottom:20}}>
+          <h3 style={{...s.sectionTitle,marginBottom:12}}>Loan Summary</h3>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:16}}>
+            {loanSummaries.map((loan,i)=>{
+              const lt=loanTypeInfo(loan.loan_type);
+              const color=LOAN_COLORS[i%LOAN_COLORS.length];
+              return(
+                <div key={loan.id} style={{...s.card,borderTop:`3px solid ${color}`,cursor:'pointer'}} onClick={()=>navigate('loan-payments',loan.id)}>
+                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+                    <span style={{fontSize:20}}>{lt.icon}</span>
+                    <div><div style={{fontWeight:600,color:'var(--ink)',fontSize:15}}>{loan.name}</div><div style={{fontSize:11,color:'var(--warm-gray)'}}>{lt.label} · {loan.interest_rate}%</div></div>
+                  </div>
+                  <div style={{height:6,borderRadius:3,background:'var(--surface)',overflow:'hidden',marginBottom:8}}>
+                    <div style={{width:`${loan.progress}%`,height:'100%',background:color,borderRadius:3}}/>
+                  </div>
+                  <div style={{display:'flex',justifyContent:'space-between',fontSize:12,color:'var(--warm-gray)',marginBottom:8}}><span>{fmt(parseFloat(loan.original_amount)-loan.currentBalance)} paid</span><span>{fmt(loan.currentBalance)} left</span></div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                    <div style={{padding:'8px',background:'var(--surface)',borderRadius:6}}><div style={{fontSize:10,color:'var(--warm-gray)',textTransform:'uppercase'}}>Balance</div><div style={{fontSize:14,fontFamily:"'DM Serif Display',serif",color:'var(--ink)'}}>{fmt(loan.currentBalance)}</div></div>
+                    <div style={{padding:'8px',background:'var(--surface)',borderRadius:6}}><div style={{fontSize:10,color:'var(--warm-gray)',textTransform:'uppercase'}}>Payments</div><div style={{fontSize:14,fontFamily:"'DM Serif Display',serif",color:'var(--ink)'}}>{loan.paymentCount}</div></div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Bills timeline */}
+      {billTimeline.length>1&&billCategories.length>0&&(
+        <div style={{...s.card,marginBottom:20}}>
+          <h3 style={s.sectionTitle}>Household Bills Over Time</h3>
+          <ResponsiveContainer width="100%" height={200}>
+            <AreaChart data={billTimeline} margin={{top:0,right:0,left:-20,bottom:0}}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)"/>
+              <XAxis dataKey="month" tick={{fontSize:10,fill:'var(--warm-gray)'}}/>
+              <YAxis tick={{fontSize:10,fill:'var(--warm-gray)'}}/>
+              <Tooltip formatter={v=>fmt(v)} contentStyle={{background:'var(--card)',border:'1px solid var(--border)',color:'var(--ink)'}}/>
+              <Legend/>
+              {billCategories.map((cat,i)=>(
+                <Area key={cat.id} type="monotone" dataKey={cat.name} stroke={cat.color||'#7B8FA1'} fill={cat.color+'22'||'#7B8FA122'} name={`${cat.icon} ${cat.name}`} stackId="bills"/>
+              ))}
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Bill category quick view */}
+      {billSummary.length>0&&(
+        <div style={{marginBottom:20}}>
+          <h3 style={{...s.sectionTitle,marginBottom:12}}>Bills by Category</h3>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))',gap:12}}>
+            {billSummary.map(b=>(
+              <div key={b.id} style={{...s.card,borderTop:`3px solid ${b.color||'#7B8FA1'}`,cursor:'pointer',padding:'14px 16px'}} onClick={()=>navigate('bills',null,b.id)}>
+                <div style={{fontSize:22,marginBottom:4}}>{b.icon}</div>
+                <div style={{fontWeight:600,fontSize:13,color:'var(--ink)',marginBottom:2}}>{b.name}</div>
+                <div style={{fontSize:18,fontFamily:"'DM Serif Display',serif",color:b.color||'var(--gold)',marginBottom:4}}>{fmt(b.totalSpent)}</div>
+                <div style={{fontSize:11,color:'var(--warm-gray)'}}>{b.billCount} entries{b.lastAmount?` · Last: ${fmt(b.lastAmount)}`:''}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {loanSummaries.length===0&&billSummary.length===0&&(
+        <div style={{...s.card,textAlign:'center',padding:'60px 40px'}}>
+          <div style={{fontSize:48,marginBottom:16}}>📊</div>
+          <h2 style={{fontFamily:"'DM Serif Display',serif",marginBottom:8,color:'var(--ink)'}}>Welcome to PayoffIQ</h2>
+          <p style={{color:'var(--warm-gray)'}}>Add loans or bill categories to see your financial summary here.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+// ─── LOAN DASHBOARD (single loan) ─────────────────────────────────────────────
+function LoanDashboard({loan,analytics,payments}){
+  if(!loan||!analytics)return<div style={s.card}><p style={{color:'var(--warm-gray)'}}>Loading loan data...</p></div>;
+  const a=analytics,lt=loanTypeInfo(loan.loan_type);
+  const progress=((parseFloat(loan.original_amount)-a.currentBalance)/parseFloat(loan.original_amount))*100;
+  const chartData=payments.map((p,i)=>({month:p.statement_month||`#${i+1}`,principal:parseFloat(p.principal),interest:parseFloat(p.interest),escrow:parseFloat(p.escrow),extra:parseFloat(p.extra_principal),balance:parseFloat(p.ending_balance||0)})).slice(-24);
+  const hasEscrow=lt.hasEscrow;
+  return(
+    <div>
+      <div style={s.pageHeader}><h1 style={s.pageTitle}>{lt.icon} {loan.name}</h1><p style={s.pageSub}>{lt.label} · {parseFloat(loan.interest_rate)}% · {parseInt(loan.loan_term_months)/12}yr · Started {fmtDate(loan.start_date)}</p></div>
+      <div style={{...s.card,marginBottom:20}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:10}}><span style={{fontSize:14,fontWeight:600,color:'var(--ink)'}}>Loan Payoff Progress</span><span style={{fontSize:22,fontFamily:"'DM Serif Display',serif",color:'var(--gold)'}}>{progress.toFixed(1)}%</span></div>
+        <div style={{height:12,borderRadius:6,background:'var(--surface)',overflow:'hidden'}}><div style={{width:`${Math.min(progress,100)}%`,height:'100%',background:'linear-gradient(to right,var(--gold),var(--gold-light))',borderRadius:6}}/></div>
+        <div style={{display:'flex',justifyContent:'space-between',marginTop:8,fontSize:12,color:'var(--warm-gray)'}}><span>{fmt(parseFloat(loan.original_amount)-a.currentBalance)} paid</span><span>{fmt(a.currentBalance)} remaining</span></div>
+      </div>
+      <div className="stat-grid-4" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:16,marginBottom:20}}>
+        <div style={s.statCard('var(--gold)')}><div style={s.statLabel}>Current Balance</div><div style={s.statValue}>{fmt(a.currentBalance)}</div><div style={s.statSub}>{fmt(loan.original_amount)} original</div></div>
+        <div style={s.statCard('var(--sage)')}><div style={s.statLabel}>Projected Payoff</div><div style={s.statValue}>{fmtDate(a.projectedPayoffDate)}</div><div style={s.statSub}>{fmtMonths(a.projectedMonths)} remaining</div></div>
+        <div style={s.statCard('var(--terracotta)')}><div style={s.statLabel}>Total Interest Paid</div><div style={s.statValue}>{fmt(a.totalInterestPaid)}</div><div style={s.statSub}>{fmt(a.projectedRemainingInterest)} remaining</div></div>
+        {hasEscrow?<div style={s.statCard('var(--chart-escrow)')}><div style={s.statLabel}>Total Escrow Paid</div><div style={s.statValue}>{fmt(a.totalEscrowPaid)}</div><div style={s.statSub}>{a.paymentCount} payments</div></div>
+        :<div style={s.statCard('#7B8FA1')}><div style={s.statLabel}>Payments Made</div><div style={s.statValue}>{a.paymentCount}</div><div style={s.statSub}>{fmt(a.totalPaid)} total paid</div></div>}
+      </div>
+      {chartData.length>0&&(<div className="chart-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:20}}>
+        <div style={s.card}><h3 style={s.sectionTitle}>Payment Breakdown</h3><ResponsiveContainer width="100%" height={220}><BarChart data={chartData} margin={{top:0,right:0,left:-20,bottom:0}}><CartesianGrid strokeDasharray="3 3" stroke="var(--border)"/><XAxis dataKey="month" tick={{fontSize:10,fill:'var(--warm-gray)'}}/><YAxis tick={{fontSize:10,fill:'var(--warm-gray)'}}/><Tooltip formatter={v=>fmt(v)} contentStyle={{background:'var(--card)',border:'1px solid var(--border)',color:'var(--ink)'}}/><Legend/><Bar dataKey="principal" fill="var(--gold)" name="Principal" stackId="a"/><Bar dataKey="interest" fill="var(--terracotta)" name="Interest" stackId="a"/>{hasEscrow&&<Bar dataKey="escrow" fill="var(--chart-escrow)" name="Escrow" stackId="a"/>}<Bar dataKey="extra" fill="var(--sage)" name="Extra" stackId="a"/></BarChart></ResponsiveContainer></div>
+        <div style={s.card}><h3 style={s.sectionTitle}>Balance Over Time</h3><ResponsiveContainer width="100%" height={220}><AreaChart data={chartData} margin={{top:0,right:0,left:-20,bottom:0}}><defs><linearGradient id="balGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--gold)" stopOpacity={0.2}/><stop offset="95%" stopColor="var(--gold)" stopOpacity={0}/></linearGradient></defs><CartesianGrid strokeDasharray="3 3" stroke="var(--border)"/><XAxis dataKey="month" tick={{fontSize:10,fill:'var(--warm-gray)'}}/><YAxis tick={{fontSize:10,fill:'var(--warm-gray)'}}/><Tooltip formatter={v=>fmt(v)} contentStyle={{background:'var(--card)',border:'1px solid var(--border)',color:'var(--ink)'}}/><Area type="monotone" dataKey="balance" stroke="var(--gold)" fill="url(#balGrad)" name="Balance"/></AreaChart></ResponsiveContainer></div>
+      </div>)}
+      <div style={s.card}><h3 style={s.sectionTitle}>Loan Summary</h3><div className="stat-grid-3" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12}}>{[['Monthly Payment',fmt(loan.monthly_payment)],['Payments Made',a.paymentCount],['Months Ahead',a.monthsAhead>0?`${a.monthsAhead} months`:'On track'],['Total Paid',fmt(a.totalPaid)],['Total Principal Paid',fmt(a.totalPrincipalPaid)],['Original Total Interest',fmt(a.originalTotalInterest)]].map(([l,v])=>(<div key={l} style={{padding:'12px',background:'var(--surface)',borderRadius:8}}><div style={{fontSize:11,color:'var(--warm-gray)',textTransform:'uppercase',letterSpacing:'0.06em'}}>{l}</div><div style={{fontSize:18,fontFamily:"'DM Serif Display',serif",marginTop:2,color:'var(--ink)'}}>{v}</div></div>))}</div></div>
+    </div>
+  );
+}
+// ─── DOCUMENTS VIEW (CONTAINER-WIDE) ──────────────────────────────────────────
+function DocumentsView({loans,navigate}){
+  const [docs,setDocs]=useState([]);
+  const [allPayments,setAllPayments]=useState([]);
+  const [editDoc,setEditDoc]=useState(null);
+  const [editForm,setEditForm]=useState({});
+  const [paperlessUrl,setPaperlessUrl]=useState('');
+  const [paperlessMode,setPaperlessMode]=useState(false);
+  const [saving,setSaving]=useState(false);
+  const [filterLoan,setFilterLoan]=useState('');
+  const [filterType,setFilterType]=useState('');
+
+  const load=()=>{
+    authFetch(`${API}/documents`).then(r=>r.json()).then(setDocs).catch(()=>setDocs([]));
+    authFetch(`${API}/payments`).then(r=>r.json()).then(setAllPayments).catch(()=>setAllPayments([]));
+    authFetch(`${API}/settings`).then(r=>r.json()).then(d=>{
+      const url=d.find?.(s=>s.key==='paperless_ngx_url')?.value||'';
+      setPaperlessUrl(url);
+      setPaperlessMode(!!url);
+    }).catch(()=>{});
+  };
+  useEffect(()=>{load();},[]);
+
+  const savePaperlessUrl=async()=>{
+    await authFetch(`${API}/settings`,{method:'POST',body:JSON.stringify({paperless_ngx_url:paperlessUrl})});
+    setPaperlessMode(!!paperlessUrl);
+    alert('Paperless-NGX URL saved!');
+  };
+
+  const startEdit=(doc)=>{
+    setEditDoc(doc.id);
+    setEditForm({original_name:doc.original_name,description:doc.description||'',payment_id:doc.payment_id||''});
+  };
+  const saveEdit=async(id)=>{
+    setSaving(true);
+    await authFetch(`${API}/documents/${id}`,{method:'PUT',body:JSON.stringify({
+      original_name:editForm.original_name||undefined,
+      description:editForm.description||undefined,
+      payment_id:editForm.payment_id?parseInt(editForm.payment_id):null
+    })});
+    setSaving(false);setEditDoc(null);load();
+  };
+  const del=async(id)=>{if(!confirm('Delete this document?'))return;await authFetch(`${API}/documents/${id}`,{method:'DELETE'});load();};
+  const icon=(name)=>/\.(jpg|jpeg|png|gif|webp|heic|heif)$/i.test(name)?'🖼️':'📄';
+
+  const filtered=docs.filter(d=>{
+    if(filterLoan&&String(d.loan_id)!==filterLoan)return false;
+    if(filterType&&d.doc_type!==filterType)return false;
+    return true;
+  });
+  const docTypes=[...new Set(docs.map(d=>d.doc_type).filter(Boolean))];
+
+  return(
+    <div>
+      <div style={s.pageHeader}><h1 style={s.pageTitle}>📁 Documents</h1><p style={s.pageSub}>All files stored on this server — {docs.length} total</p></div>
+
+      {/* Paperless-NGX Integration */}
+      <div style={{...s.card,marginBottom:20,border:'1px solid var(--border)'}}>
+        <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:12}}>
+          <span style={{fontSize:20}}>🗂️</span>
+          <div><div style={{fontWeight:600,color:'var(--ink)'}}>Document Storage Mode</div><div style={{fontSize:12,color:'var(--warm-gray)'}}>Store files locally or link to your Paperless-NGX server</div></div>
+        </div>
+        <div style={{display:'flex',gap:12,marginBottom:12}}>
+          <button style={{...s.btn(paperlessMode?'ghost':'outline'),fontSize:13}} onClick={()=>{setPaperlessMode(false);}}>📂 Local Storage</button>
+          <button style={{...s.btn(paperlessMode?'outline':'ghost'),fontSize:13}} onClick={()=>setPaperlessMode(true)}>🗂️ Paperless-NGX</button>
+        </div>
+        {paperlessMode&&(
+          <div style={{display:'flex',gap:8,alignItems:'center'}}>
+            <input style={{...s.input,flex:1}} value={paperlessUrl} onChange={e=>setPaperlessUrl(e.target.value)} placeholder="http://your-server:8000 (Paperless-NGX URL)"/>
+            <button style={s.btn()} onClick={savePaperlessUrl}>Save URL</button>
+            {paperlessUrl&&<a href={paperlessUrl} target="_blank" rel="noreferrer" style={{...s.btn('outline'),textDecoration:'none',whiteSpace:'nowrap',fontSize:13,padding:'9px 16px'}}>Open Paperless ↗</a>}
+          </div>
+        )}
+      </div>
+
+      {/* Filters */}
+      <div style={{...s.card,marginBottom:20}}>
+        <div style={{display:'flex',gap:12,flexWrap:'wrap',alignItems:'flex-end'}}>
+          <Field label="Filter by Loan">
+            <select style={{...s.input,width:180}} value={filterLoan} onChange={e=>setFilterLoan(e.target.value)}>
+              <option value="">All Loans</option>
+              {loans.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}
+            </select>
+          </Field>
+          <Field label="Filter by Type">
+            <select style={{...s.input,width:150}} value={filterType} onChange={e=>setFilterType(e.target.value)}>
+              <option value="">All Types</option>
+              {docTypes.map(t=><option key={t} value={t}>{t}</option>)}
+            </select>
+          </Field>
+          <button style={s.btn('ghost')} onClick={()=>{setFilterLoan('');setFilterType('');}}>Clear</button>
+        </div>
+      </div>
+
+      {/* Documents table */}
+      <div style={s.card}>
+        <h3 style={s.sectionTitle}>All Documents ({filtered.length})</h3>
+        {filtered.length===0?<p style={{color:'var(--warm-gray)',fontSize:13}}>No documents found.</p>:(
+          <div style={{overflowX:'auto'}}>
+            <table style={s.table}>
+              <thead><tr>
+                <th style={s.th}>File</th>
+                <th style={s.th}>Type</th>
+                <th style={s.th}>Loan</th>
+                <th style={s.th}>Linked Payment</th>
+                <th style={s.th}>Uploaded</th>
+                <th style={s.th}></th>
+              </tr></thead>
+              <tbody>{filtered.map(d=>(
+                <tr key={d.id}>
+                  <td style={s.td}>
+                    {editDoc===d.id?(
+                      <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                        <input style={{...s.input,fontSize:12}} value={editForm.original_name} onChange={e=>setEditForm(f=>({...f,original_name:e.target.value}))} placeholder="File name"/>
+                        <input style={{...s.input,fontSize:12}} value={editForm.description} onChange={e=>setEditForm(f=>({...f,description:e.target.value}))} placeholder="Description"/>
+                      </div>
+                    ):(
+                      paperlessMode&&paperlessUrl?(
+                        <a href={`${paperlessUrl}/documents?search=${encodeURIComponent(d.original_name)}`} target="_blank" rel="noreferrer" style={{color:'var(--gold)',textDecoration:'none',display:'flex',alignItems:'center',gap:6}}>{icon(d.original_name)} {d.description||d.original_name} ↗</a>
+                      ):(
+                        <a href={`/statements/${d.filename}`} target="_blank" rel="noreferrer" style={{color:'var(--gold)',textDecoration:'none',display:'flex',alignItems:'center',gap:6}}>{icon(d.original_name)} {d.description||d.original_name}</a>
+                      )
+                    )}
+                  </td>
+                  <td style={s.td}><span style={s.badge('blue')}>{d.doc_type}</span></td>
+                  <td style={s.td}><span style={{color:'var(--warm-gray)',fontSize:12}}>{d.loan_name||'—'}</span></td>
+                  <td style={s.td}>
+                    {editDoc===d.id?(
+                      <select style={{...s.input,fontSize:12}} value={editForm.payment_id} onChange={e=>setEditForm(f=>({...f,payment_id:e.target.value}))}>
+                        <option value="">No payment link</option>
+                        {allPayments.filter(p=>!d.loan_id||p.loan_id===d.loan_id).map(p=>(
+                          <option key={p.id} value={p.id}>{p.loan_name} – {fmtDate(p.payment_date)} – {fmt(p.total_payment)}</option>
+                        ))}
+                      </select>
+                    ):(
+                      d.payment_date?(
+                        <div style={{display:'flex',alignItems:'center',gap:8}}>
+                          <span style={{fontSize:12}}>{fmtDate(d.payment_date)}{d.statement_month?` (${d.statement_month})`:''}</span>
+                          <button style={{background:'none',border:'1px solid var(--border)',borderRadius:4,fontSize:10,color:'var(--gold)',cursor:'pointer',padding:'2px 6px'}} onClick={()=>navigate('loan-payments',d.loan_id)}>→ View</button>
+                        </div>
+                      ):<span style={{color:'var(--warm-gray)',fontSize:12}}>—</span>
+                    )}
+                  </td>
+                  <td style={s.td}><span style={{fontSize:12}}>{new Date(d.uploaded_at).toLocaleDateString()}</span></td>
+                  <td style={s.td}>
+                    <div style={{display:'flex',gap:6}}>
+                      {editDoc===d.id?(
+                        <>
+                          <button style={s.btn('sm')} onClick={()=>saveEdit(d.id)} disabled={saving}>{saving?'…':'Save'}</button>
+                          <button style={s.btn('ghost')} onClick={()=>setEditDoc(null)}>Cancel</button>
+                        </>
+                      ):(
+                        <>
+                          <button style={s.btn('sm')} onClick={()=>startEdit(d)}>Edit</button>
+                          <button style={{...s.btn('sm'),background:'#FEF3F0',color:'var(--terracotta)'}} onClick={()=>del(d.id)}>Del</button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 // ─── APP ROOT ─────────────────────────────────────────────────────────────────
 export default function App(){
   const [authed,setAuthed]=useState(!!localStorage.getItem('miq-token'));
   const [username,setUsername]=useState(localStorage.getItem('miq-user')||'');
   const [view,setView]=useState('dashboard');
+  const [viewLoanId,setViewLoanId]=useState(null); // which loan is selected for sub-views
+  const [viewBillCatId,setViewBillCatId]=useState(null);
   const [loans,setLoans]=useState([]);
-  const [selectedLoan,setSelectedLoan]=useState(null);
-  const [analytics,setAnalytics]=useState(null);
-  const [payments,setPayments]=useState([]);
+  const [loanData,setLoanData]=useState({}); // {[loanId]: {analytics, payments}}
   const [sidebarOpen,setSidebarOpen]=useState(false);
   const [theme,setTheme]=useState(()=>localStorage.getItem('payoffiq-theme')||'light');
 
-  useEffect(()=>{document.documentElement.setAttribute('data-theme',theme==='light'?'':theme);localStorage.setItem('payoffiq-theme',theme);},[theme]);
+  useEffect(()=>{document.documentElement.setAttribute('data-theme',theme===('light')?'':theme);localStorage.setItem('payoffiq-theme',theme);},[theme]);
 
-  const loadLoans=useCallback(async()=>{const r=await authFetch(`${API}/loans`);if(r.status===401){logout();return[];}const d=await r.json();setLoans(d);return d;},[]);
-  const selectLoan=useCallback(async(loan)=>{setSelectedLoan(loan);const[a,p]=await Promise.all([authFetch(`${API}/loans/${loan.id}/analytics`).then(r=>r.json()),authFetch(`${API}/loans/${loan.id}/payments`).then(r=>r.json())]);setAnalytics(a);setPayments(p);},[]);
-  const refreshData=useCallback(async()=>{const d=await loadLoans();if(selectedLoan){const u=d.find(l=>l.id===selectedLoan.id);if(u)selectLoan(u);}},[selectedLoan,loadLoans,selectLoan]);
-  useEffect(()=>{if(authed)loadLoans().then(d=>{if(d.length>0)selectLoan(d[0]);});},[authed]);
+  const loadLoans=useCallback(async()=>{
+    const r=await authFetch(`${API}/loans`);
+    if(r.status===401){logout();return[];}
+    const d=await r.json();setLoans(d);return d;
+  },[]);
 
-  const logout=()=>{localStorage.removeItem('miq-token');localStorage.removeItem('miq-user');setAuthed(false);setUsername('');setLoans([]);setSelectedLoan(null);};
+  const loadLoanData=useCallback(async(loan)=>{
+    const[a,p]=await Promise.all([
+      authFetch(`${API}/loans/${loan.id}/analytics`).then(r=>r.json()),
+      authFetch(`${API}/loans/${loan.id}/payments`).then(r=>r.json())
+    ]);
+    setLoanData(prev=>({...prev,[loan.id]:{analytics:a,payments:p}}));
+    return{analytics:a,payments:p};
+  },[]);
+
+  useEffect(()=>{if(authed){loadLoans().then(d=>{d.forEach(loan=>loadLoanData(loan));});};},[authed]);
+
+  const refreshLoan=useCallback(async(loanId)=>{
+    const allLoans=await loadLoans();
+    const loan=allLoans.find(l=>l.id===loanId);
+    if(loan)await loadLoanData(loan);
+  },[loadLoans,loadLoanData]);
+
+  const logout=()=>{localStorage.removeItem('miq-token');localStorage.removeItem('miq-user');setAuthed(false);setUsername('');setLoans([]);setLoanData({});};
   const onLogin=(u)=>{setAuthed(true);setUsername(u);};
+
+  // navigate(view, loanId?, billCatId?)
+  const navigate=(id,loanId=null,billCatId=null)=>{
+    setView(id);
+    if(loanId)setViewLoanId(loanId);
+    if(billCatId)setViewBillCatId(billCatId);
+    setSidebarOpen(false);
+  };
 
   // Handle password reset URLs
   const resetToken=new URLSearchParams(window.location.search).get('token')||(window.location.hash.includes('token=')?new URLSearchParams(window.location.hash.split('?')[1]).get('token'):null);
   if(resetToken||window.location.pathname==='/reset-password')return<ResetPasswordPage token={resetToken||''} onDone={()=>{window.history.replaceState({},'','/');setAuthed(false);}}/>;
   if(!authed)return<LoginPage onLogin={onLogin}/>;
 
-  const lt=loanTypeInfo(selectedLoan?.loan_type);
-  const navItems=[
-    {id:'dashboard',icon:'📊',label:'Dashboard'},
-    {id:'payments',icon:'💳',label:'Payments'},
-    {id:'calculator',icon:'🧮',label:'Payoff Calculator'},
-    ...(lt.hasEscrow?[{id:'escrow',icon:'🏛️',label:'Escrow Tracker'}]:[]),
-    ...(selectedLoan?.loan_type==='arm'?[{id:'arm',icon:'📈',label:'ARM Rate History'}]:[]),
-    {id:'documents',icon:'📁',label:'Documents'},
-    {id:'bills',icon:'💡',label:'Household Bills'},
-    {id:'loans',icon:'🏠',label:'Manage Loans'},
-    {id:'settings',icon:'⚙️',label:'Settings'},
-  ];
-  const navigate=(id)=>{setView(id);setSidebarOpen(false);};
+  // Current selected loan for single-loan views
+  const selectedLoan=loans.find(l=>l.id===viewLoanId)||loans[0]||null;
+  const selectedLoanData=selectedLoan?loanData[selectedLoan.id]:{};
+
+  // Group loans by type for sidebar
+  const LOAN_TYPE_ORDER=['mortgage','arm','heloc','auto','personal'];
+  const loansByType={};
+  loans.forEach(l=>{
+    if(!loansByType[l.loan_type])loansByType[l.loan_type]=[];
+    loansByType[l.loan_type].push(l);
+  });
+
+  const isLoanView=view==='loan-dashboard'||view==='loan-payments'||view==='loan-calculator'||view==='loan-escrow'||view==='loan-arm';
+  const currentLoan=isLoanView?selectedLoan:null;
 
   return(
     <div style={s.app}>
       <button className="hamburger" onClick={()=>setSidebarOpen(o=>!o)} aria-label="Toggle menu">{sidebarOpen?'✕':'☰'}</button>
       <div className={`sidebar-overlay${sidebarOpen?' open':''}`} onClick={()=>setSidebarOpen(false)}/>
+
+      {/* ── SIDEBAR ── */}
       <div className={`sidebar${sidebarOpen?' open':''}`} style={s.sidebar}>
-        <div style={s.logo}><div style={s.logoTitle}>PayoffIQ</div><div style={s.logoSub}>Loan Manager</div></div>
-        {username&&<div style={{padding:'8px 20px',fontSize:12,color:'rgba(255,255,255,0.45)'}}>👤 {username}</div>}
-        <div style={s.navSection}>Navigation</div>
-        {navItems.map(item=>(<div key={item.id} style={s.navItem(view===item.id)} onClick={()=>navigate(item.id)}><span>{item.icon}</span><span>{item.label}</span></div>))}
-        {/* GitHub link in sidebar */}
-        <div style={{padding:'8px 12px',marginTop:8,borderTop:'1px solid rgba(255,255,255,0.08)'}}>
-          <a href="https://github.com/JonGaydos/payoffiq" target="_blank" rel="noreferrer" style={{display:'flex',alignItems:'center',gap:8,padding:'8px 10px',borderRadius:6,color:'rgba(255,255,255,0.4)',fontSize:12,textDecoration:'none',cursor:'pointer'}} onMouseOver={e=>e.currentTarget.style.color='rgba(255,255,255,0.7)'} onMouseOut={e=>e.currentTarget.style.color='rgba(255,255,255,0.4)'}><span>⬡</span><span>GitHub / Get Help</span></a>
+        <div style={s.logo}>
+          <div style={s.logoTitle}>PayoffIQ</div>
+          <div style={s.logoSub}>Loan Manager</div>
+          {username&&<div style={{fontSize:11,color:'rgba(255,255,255,0.35)',marginTop:6}}>👤 {username}</div>}
         </div>
-        <div style={s.loanPicker}>
-          <div style={s.loanPickerLabel}>Active Loan</div>
-          <select style={s.sidebarSelect} value={selectedLoan?.id||''} onChange={e=>{const l=loans.find(x=>x.id===parseInt(e.target.value));if(l)selectLoan(l);}}>
-            {loans.length===0&&<option value="">No loans yet</option>}
-            {loans.map(l=><option key={l.id} value={l.id}>{loanTypeInfo(l.loan_type).icon} {l.name}</option>)}
-          </select>
+
+        {/* General */}
+        <div style={s.navGroup}>General</div>
+        <div style={s.navItem(view==='dashboard',null)} onClick={()=>navigate('dashboard')}>
+          <span>📊</span><span>Dashboard</span>
+        </div>
+        <div style={s.navItem(view==='documents',null)} onClick={()=>navigate('documents')}>
+          <span>📁</span><span>Documents</span>
+        </div>
+
+        {/* Loans — grouped by type */}
+        {LOAN_TYPE_ORDER.filter(type=>loansByType[type]).map(type=>{
+          const lt=loanTypeInfo(type);
+          return(
+            <div key={type}>
+              <div style={s.navDivider}/>
+              <div style={s.navGroup}>{lt.icon} {lt.label}{loansByType[type].length>1?'s':''}</div>
+              {loansByType[type].map(loan=>{
+                const isActive=viewLoanId===loan.id;
+                const subActive=isLoanView&&isActive;
+                return(
+                  <div key={loan.id}>
+                    {/* Loan header — click to go to its dashboard */}
+                    <div style={{...s.navItem(subActive&&view==='loan-dashboard',lt.color||null),paddingLeft:16}} onClick={()=>{setViewLoanId(loan.id);navigate('loan-dashboard',loan.id);}}>
+                      <span style={{fontSize:12}}>{lt.icon}</span>
+                      <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{loan.name}</span>
+                    </div>
+                    {/* Sub-nav only shows when this loan is selected */}
+                    {isActive&&(
+                      <div style={{paddingLeft:8}}>
+                        <div style={{...s.navItem(view==='loan-payments'),paddingLeft:24}} onClick={()=>navigate('loan-payments',loan.id)}>
+                          <span>💳</span><span>Payments</span>
+                        </div>
+                        <div style={{...s.navItem(view==='loan-calculator'),paddingLeft:24}} onClick={()=>navigate('loan-calculator',loan.id)}>
+                          <span>🧮</span><span>Calculator</span>
+                        </div>
+                        {lt.hasEscrow&&<div style={{...s.navItem(view==='loan-escrow'),paddingLeft:24}} onClick={()=>navigate('loan-escrow',loan.id)}>
+                          <span>🏛️</span><span>Escrow</span>
+                        </div>}
+                        {loan.loan_type==='arm'&&<div style={{...s.navItem(view==='loan-arm'),paddingLeft:24}} onClick={()=>navigate('loan-arm',loan.id)}>
+                          <span>📈</span><span>ARM Rates</span>
+                        </div>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+
+        {/* Household Bills */}
+        <div style={s.navDivider}/>
+        <div style={s.navGroup}>💡 Household</div>
+        <div style={s.navItem(view==='bills'&&!viewBillCatId,null)} onClick={()=>{setViewBillCatId(null);navigate('bills');}}>
+          <span>💡</span><span>All Bills</span>
+        </div>
+
+        {/* Management */}
+        <div style={s.navDivider}/>
+        <div style={s.navGroup}>Account</div>
+        <div style={s.navItem(view==='loans-manager',null)} onClick={()=>navigate('loans-manager')}>
+          <span>🏠</span><span>Manage Loans</span>
+        </div>
+        <div style={s.navItem(view==='settings',null)} onClick={()=>navigate('settings')}>
+          <span>⚙️</span><span>Settings</span>
+        </div>
+
+        {/* GitHub at bottom */}
+        <div style={{marginTop:'auto',borderTop:'1px solid rgba(255,255,255,0.08)',padding:'8px 0 4px'}}>
+          <a href="https://github.com/JonGaydos/payoffiq" target="_blank" rel="noreferrer"
+            style={s.githubLink}
+            onMouseOver={e=>e.currentTarget.style.color='rgba(255,255,255,0.65)'}
+            onMouseOut={e=>e.currentTarget.style.color='rgba(255,255,255,0.35)'}>
+            <span>⬡</span><span>GitHub / Get Help</span>
+          </a>
         </div>
       </div>
+
+      {/* ── MAIN CONTENT ── */}
       <div className="main-content" style={s.main}>
-        {view==='dashboard'&&<Dashboard selectedLoan={selectedLoan} analytics={analytics} payments={payments}/>}
-        {view==='payments'&&<PaymentsView loan={selectedLoan} payments={payments} onRefresh={refreshData} onNavigateToDocuments={()=>navigate('documents')}/>}
-        {view==='calculator'&&<Calculator loan={selectedLoan}/>}
-        {view==='escrow'&&lt.hasEscrow&&<EscrowView loan={selectedLoan}/>}
-        {view==='documents'&&<DocumentsView loan={selectedLoan} onNavigateToPayments={()=>navigate('payments')}/>}
-        {view==='bills'&&<BillsView/>}
-        {view==='loans'&&<LoansManager loans={loans} onRefresh={loadLoans} onSelect={l=>{selectLoan(l);setView('dashboard');}}/>}
+        {view==='dashboard'&&<Dashboard loans={loans} navigate={navigate}/>}
+        {view==='documents'&&<DocumentsView loans={loans} navigate={navigate}/>}
+        {view==='bills'&&<BillsView initialCatId={viewBillCatId}/>}
+        {view==='loans-manager'&&<LoansManager loans={loans} onRefresh={loadLoans} onSelect={l=>{setViewLoanId(l.id);loadLoanData(l).then(()=>navigate('loan-dashboard',l.id));}}/>}
         {view==='settings'&&<Settings theme={theme} setTheme={setTheme} onLogout={logout}/>}
-        {view==='arm'&&selectedLoan?.loan_type==='arm'&&<ARMRateManager loan={selectedLoan} onUpdate={refreshData}/>}
+        {isLoanView&&selectedLoan&&(()=>{
+          const ld=loanData[selectedLoan.id]||{};
+          const lt=loanTypeInfo(selectedLoan.loan_type);
+          return(
+            <>
+              {view==='loan-dashboard'&&<LoanDashboard loan={selectedLoan} analytics={ld.analytics} payments={ld.payments||[]}/>}
+              {view==='loan-payments'&&<PaymentsView loan={selectedLoan} payments={ld.payments||[]} onRefresh={()=>refreshLoan(selectedLoan.id)} onNavigateToDocuments={()=>navigate('documents')}/>}
+              {view==='loan-calculator'&&<Calculator loan={selectedLoan}/>}
+              {view==='loan-escrow'&&lt.hasEscrow&&<EscrowView loan={selectedLoan}/>}
+              {view==='loan-arm'&&selectedLoan.loan_type==='arm'&&<ARMRateManager loan={selectedLoan} onUpdate={()=>refreshLoan(selectedLoan.id)}/>}
+            </>
+          );
+        })()}
+        {isLoanView&&!selectedLoan&&<div style={s.card}><p style={{color:'var(--warm-gray)'}}>No loan selected. <button style={{background:'none',border:'none',color:'var(--gold)',cursor:'pointer',fontSize:14}} onClick={()=>navigate('loans-manager')}>Add a loan →</button></p></div>}
       </div>
     </div>
   );

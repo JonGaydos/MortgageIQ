@@ -151,6 +151,8 @@ db.exec(`
   `ALTER TABLE users ADD COLUMN reset_token_expires TEXT`,
   `ALTER TABLE loan_documents ADD COLUMN escrow_item_id INTEGER`,
   `ALTER TABLE loan_documents ADD COLUMN bill_id INTEGER`,
+  `ALTER TABLE settings ADD COLUMN updated_at TEXT DEFAULT (datetime('now'))`,
+  `ALTER TABLE bill_categories ADD COLUMN cycle TEXT DEFAULT 'monthly'`,
 ].forEach(sql => { try { db.prepare(sql).run(); } catch (e) {} });
 
 console.log('Database initialized at ' + DB_PATH);
@@ -610,13 +612,13 @@ app.post('/api/loans/:id/process-pdf', upload.single('pdf'), async (req,res) => 
 // BILL CATEGORIES
 app.get('/api/bills/categories', (req,res) => res.json(db.prepare('SELECT * FROM bill_categories ORDER BY name ASC').all()));
 app.post('/api/bills/categories', (req,res) => {
-  const {name,icon,color,custom_fields}=req.body;
-  const r=db.prepare('INSERT INTO bill_categories (name,icon,color,custom_fields) VALUES (?,?,?,?)').run(name,icon||'💡',color||'#7B8FA1',custom_fields?JSON.stringify(custom_fields):null);
+  const {name,icon,color,custom_fields,cycle}=req.body;
+  const r=db.prepare('INSERT INTO bill_categories (name,icon,color,custom_fields,cycle) VALUES (?,?,?,?,?)').run(name,icon||'💡',color||'#7B8FA1',custom_fields?JSON.stringify(custom_fields):null,cycle||'monthly');
   res.json(db.prepare('SELECT * FROM bill_categories WHERE id=?').get(r.lastInsertRowid));
 });
 app.put('/api/bills/categories/:id', (req,res) => {
-  const {name,icon,color,custom_fields}=req.body;
-  db.prepare('UPDATE bill_categories SET name=?,icon=?,color=?,custom_fields=? WHERE id=?').run(name,icon||'💡',color||'#7B8FA1',custom_fields?JSON.stringify(custom_fields):null,req.params.id);
+  const {name,icon,color,custom_fields,cycle}=req.body;
+  db.prepare('UPDATE bill_categories SET name=?,icon=?,color=?,custom_fields=?,cycle=? WHERE id=?').run(name,icon||'💡',color||'#7B8FA1',custom_fields?JSON.stringify(custom_fields):null,cycle||'monthly',req.params.id);
   res.json(db.prepare('SELECT * FROM bill_categories WHERE id=?').get(req.params.id));
 });
 app.delete('/api/bills/categories/:id', (req,res) => { db.prepare('DELETE FROM bill_categories WHERE id=?').run(req.params.id); res.json({success:true}); });
@@ -675,6 +677,99 @@ app.post('/api/bills/:id/analyze-pdf', upload.single('pdf'), async (req,res) => 
     try{if(req.file?.path)fs.unlinkSync(req.file.path);}catch(e){}
     res.status(500).json({error:err.message});
   }
+});
+
+// ─── ALL DOCUMENTS (CONTAINER-WIDE) ──────────────────────────────────────────
+app.get('/api/documents', auth, (req,res) => {
+  const rows = db.prepare(`
+    SELECT d.*,
+      l.name as loan_name, l.id as loan_id,
+      p.payment_date, p.statement_month,
+      b.amount as bill_amount,
+      bc.name as bill_category_name, bc.icon as bill_category_icon
+    FROM loan_documents d
+    LEFT JOIN loans l ON d.loan_id=l.id
+    LEFT JOIN payments p ON d.payment_id=p.id
+    LEFT JOIN bills b ON d.bill_id=b.id
+    LEFT JOIN bill_categories bc ON b.category_id=bc.id
+    ORDER BY d.uploaded_at DESC
+  `).all();
+  res.json(rows);
+});
+
+// Edit document metadata (name, description, payment link)
+app.put('/api/documents/:id', auth, (req,res) => {
+  const {original_name, description, payment_id} = req.body;
+  const doc = db.prepare('SELECT * FROM loan_documents WHERE id=?').get(req.params.id);
+  if(!doc) return res.status(404).json({error:'Not found'});
+  db.prepare(`UPDATE loan_documents SET
+    original_name=COALESCE(?,original_name),
+    description=COALESCE(?,description),
+    payment_id=?
+    WHERE id=?`).run(original_name||null, description||null, payment_id||null, req.params.id);
+  res.json(db.prepare('SELECT * FROM loan_documents WHERE id=?').get(req.params.id));
+});
+
+// ─── ALL LOANS SUMMARY (DASHBOARD) ───────────────────────────────────────────
+app.get('/api/dashboard', auth, (req,res) => {
+  const loans = db.prepare('SELECT * FROM loans ORDER BY created_at DESC').all();
+  const loanSummaries = loans.map(loan => {
+    const payments = db.prepare('SELECT * FROM payments WHERE loan_id=? ORDER BY payment_date ASC').all(loan.id);
+    const totalPaid = payments.reduce((s,p)=>s+(p.total_payment||0),0);
+    const totalPrincipal = payments.reduce((s,p)=>s+(p.principal||0),0);
+    const totalInterest = payments.reduce((s,p)=>s+(p.interest||0),0);
+    const totalEscrow = payments.reduce((s,p)=>s+(p.escrow||0),0);
+    const currentBalance = parseFloat(loan.current_balance || loan.original_amount);
+    const progress = ((parseFloat(loan.original_amount)-currentBalance)/parseFloat(loan.original_amount))*100;
+    return { ...loan, paymentCount:payments.length, totalPaid, totalPrincipal, totalInterest, totalEscrow, currentBalance, progress:Math.max(0,Math.min(100,progress)) };
+  });
+
+  // Combined payment timeline across all loans (last 24 months)
+  const allPayments = db.prepare(`
+    SELECT p.*, l.name as loan_name, l.loan_type
+    FROM payments p JOIN loans l ON p.loan_id=l.id
+    ORDER BY p.payment_date ASC
+  `).all();
+
+  // Group by month for the combined chart
+  const monthMap = {};
+  allPayments.forEach(p => {
+    const month = (p.statement_month || p.payment_date?.slice(0,7) || '');
+    if(!monthMap[month]) monthMap[month]={month,total:0,principal:0,interest:0,escrow:0,extra:0};
+    monthMap[month].total += parseFloat(p.total_payment||0);
+    monthMap[month].principal += parseFloat(p.principal||0);
+    monthMap[month].interest += parseFloat(p.interest||0);
+    monthMap[month].escrow += parseFloat(p.escrow||0);
+    monthMap[month].extra += parseFloat(p.extra_principal||0);
+  });
+  const paymentTimeline = Object.values(monthMap).sort((a,b)=>a.month.localeCompare(b.month)).slice(-24);
+
+  // Bills summary
+  const billCategories = db.prepare('SELECT * FROM bill_categories').all();
+  const allBills = db.prepare('SELECT b.*, bc.name as cat_name, bc.icon as cat_icon, bc.color as cat_color FROM bills b JOIN bill_categories bc ON b.category_id=bc.id ORDER BY b.bill_date DESC').all();
+  const billSummary = billCategories.map(cat => {
+    const catBills = allBills.filter(b=>b.category_id===cat.id);
+    const total = catBills.reduce((s,b)=>s+parseFloat(b.amount||0),0);
+    const lastBill = catBills[0];
+    return { ...cat, billCount:catBills.length, totalSpent:total, lastAmount:lastBill?.amount, lastDate:lastBill?.bill_date };
+  });
+
+  // Bills timeline (last 12 months, by category)
+  const billTimelineMap = {};
+  allBills.forEach(b => {
+    const month = b.bill_date?.slice(0,7)||'';
+    if(!billTimelineMap[month]) billTimelineMap[month]={month};
+    billTimelineMap[month][b.cat_name] = (billTimelineMap[month][b.cat_name]||0)+parseFloat(b.amount||0);
+  });
+  const billTimeline = Object.values(billTimelineMap).sort((a,b)=>a.month.localeCompare(b.month)).slice(-12);
+
+  res.json({ loanSummaries, paymentTimeline, billSummary, billTimeline, billCategories });
+});
+
+// ─── PAYMENTS FOR ALL LOANS (for document linking) ──────────────────────────
+app.get('/api/payments', auth, (req,res) => {
+  const rows = db.prepare(`SELECT p.*, l.name as loan_name FROM payments p JOIN loans l ON p.loan_id=l.id ORDER BY p.payment_date DESC LIMIT 200`).all();
+  res.json(rows);
 });
 
 const PORT=process.env.PORT||3001;
