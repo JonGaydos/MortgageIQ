@@ -122,38 +122,43 @@ router.post('/:id/push-to-paperless', async (req, res) => {
 
 // POST /api/documents/upload — upload a document
 router.post('/upload', upload.single('file'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
-  const { category, subcategory, linked_type, linked_id, notes, tags } = req.body;
+    const { category, subcategory, linked_type, linked_id, notes, tags } = req.body;
 
-  // Organize file into category/year structure
-  const year = new Date().getFullYear().toString();
-  const destDir = path.join(DATA_DIR, 'uploads', category || 'general', subcategory || '', year);
-  fs.mkdirSync(destDir, { recursive: true });
+    // Organize file into category/year structure
+    const year = new Date().getFullYear().toString();
+    const destDir = path.join(DATA_DIR, 'uploads', category || 'general', subcategory || '', year);
+    fs.mkdirSync(destDir, { recursive: true });
 
-  const destPath = path.join(destDir, req.file.filename);
-  fs.renameSync(req.file.path, destPath);
+    const destPath = path.join(destDir, req.file.filename);
+    fs.renameSync(req.file.path, destPath);
 
-  const relativePath = path.relative(DATA_DIR, destPath).replace(/\\/g, '/');
+    const relativePath = path.relative(DATA_DIR, destPath).replace(/\\/g, '/');
 
-  const result = db.prepare(`
-    INSERT INTO documents (filename, original_name, mime_type, file_size, file_path, category, subcategory, linked_type, linked_id, tags, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    req.file.filename,
-    req.file.originalname,
-    req.file.mimetype,
-    req.file.size,
-    relativePath,
-    category || 'general',
-    subcategory || null,
-    linked_type || null,
-    linked_id ? parseInt(linked_id) : null,
-    tags || '[]',
-    notes || null,
-  );
+    const result = db.prepare(`
+      INSERT INTO documents (filename, original_name, mime_type, file_size, file_path, category, subcategory, linked_type, linked_id, tags, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      req.file.filename,
+      req.file.originalname,
+      req.file.mimetype,
+      req.file.size,
+      relativePath,
+      category || 'general',
+      subcategory || null,
+      linked_type || null,
+      linked_id ? parseInt(linked_id) : null,
+      tags || '[]',
+      notes || null,
+    );
 
-  res.json({ id: result.lastInsertRowid, path: relativePath });
+    res.json({ id: result.lastInsertRowid, path: relativePath });
+  } catch (err) {
+    console.error('Upload error:', err);
+    res.status(500).json({ error: `Upload failed: ${err.message}` });
+  }
 });
 
 // POST /api/documents/:id/extract — run AI extraction
@@ -177,19 +182,34 @@ router.post('/:id/extract', async (req, res) => {
 
 // PUT /api/documents/:id — update metadata
 router.put('/:id', (req, res) => {
-  const { category, subcategory, linked_type, linked_id, tags, notes, ai_extracted } = req.body;
+  const doc = db.prepare('SELECT * FROM documents WHERE id = ?').get(req.params.id);
+  if (!doc) return res.status(404).json({ error: 'Not found' });
 
-  db.prepare(`
-    UPDATE documents
-    SET category=?, subcategory=?, linked_type=?, linked_id=?, tags=?, notes=?, ai_extracted=?
-    WHERE id=?
-  `).run(
-    category, subcategory, linked_type, linked_id,
-    typeof tags === 'string' ? tags : JSON.stringify(tags || []),
-    notes,
-    typeof ai_extracted === 'string' ? ai_extracted : JSON.stringify(ai_extracted || {}),
-    req.params.id,
-  );
+  const {
+    original_name, file_path: newUrl,
+    category, subcategory, linked_type, linked_id, tags, notes, ai_extracted,
+  } = req.body;
+
+  // Build dynamic update
+  const updates = {};
+  if (original_name !== undefined) updates.original_name = original_name;
+  if (newUrl !== undefined && doc.mime_type === 'application/link') updates.file_path = newUrl;
+  if (category !== undefined) updates.category = category;
+  if (subcategory !== undefined) updates.subcategory = subcategory;
+  if (linked_type !== undefined) updates.linked_type = linked_type;
+  if (linked_id !== undefined) updates.linked_id = linked_id;
+  if (tags !== undefined) updates.tags = typeof tags === 'string' ? tags : JSON.stringify(tags || []);
+  if (notes !== undefined) updates.notes = notes;
+  if (ai_extracted !== undefined) updates.ai_extracted = typeof ai_extracted === 'string' ? ai_extracted : JSON.stringify(ai_extracted || {});
+
+  if (Object.keys(updates).length === 0) {
+    return res.json({ success: true, message: 'No changes' });
+  }
+
+  const setClauses = Object.keys(updates).map(k => `${k}=?`).join(', ');
+  const values = [...Object.values(updates), req.params.id];
+
+  db.prepare(`UPDATE documents SET ${setClauses} WHERE id=?`).run(...values);
 
   res.json({ success: true });
 });

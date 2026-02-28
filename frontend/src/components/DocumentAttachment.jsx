@@ -23,6 +23,9 @@ export default function DocumentAttachment({ linkedType, linkedId, category = 'g
   const [showLinkForm, setShowLinkForm] = useState(false);
   const [linkForm, setLinkForm] = useState({ title: '', url: '', notes: '' });
   const [expanded, setExpanded] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({ original_name: '', file_path: '' });
   const fileRef = useRef();
 
   const loadDocs = async () => {
@@ -41,25 +44,33 @@ export default function DocumentAttachment({ linkedType, linkedId, category = 'g
     const file = e.target.files[0];
     if (!file || !linkedId) return;
     setUploading(true);
+    setUploadError(null);
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('category', category);
-    formData.append('linked_type', linkedType);
-    formData.append('linked_id', String(linkedId));
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('category', category);
+      formData.append('linked_type', linkedType);
+      formData.append('linked_id', String(linkedId));
 
-    const res = await fetch(`${API_BASE}/documents/upload`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData,
-    });
+      const res = await fetch(`${API_BASE}/documents/upload`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
 
-    if (res.ok) {
-      const result = await res.json();
-      if (withAi) {
-        await handleExtract(result.id);
+      if (res.ok) {
+        const result = await res.json();
+        if (withAi) {
+          await handleExtract(result.id);
+        }
+        loadDocs();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setUploadError(err.error || `Upload failed (${res.status})`);
       }
-      loadDocs();
+    } catch (err) {
+      setUploadError(`Upload failed: ${err.message}`);
     }
     setUploading(false);
     if (fileRef.current) fileRef.current.value = '';
@@ -91,6 +102,27 @@ export default function DocumentAttachment({ linkedType, linkedId, category = 'g
   const handleDelete = async (id) => {
     if (!confirm('Delete this attached document?')) return;
     await authFetch(`${API_BASE}/documents/${id}`, { method: 'DELETE' });
+    loadDocs();
+  };
+
+  const startEdit = (doc) => {
+    setEditingId(doc.id);
+    setEditForm({
+      original_name: doc.original_name || '',
+      file_path: doc.mime_type === 'application/link' ? doc.file_path || '' : '',
+    });
+  };
+
+  const saveEdit = async () => {
+    if (!editingId) return;
+    const updates = { original_name: editForm.original_name };
+    const doc = docs.find(d => d.id === editingId);
+    if (doc?.mime_type === 'application/link') updates.file_path = editForm.file_path;
+    await authFetch(`${API_BASE}/documents/${editingId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+    setEditingId(null);
     loadDocs();
   };
 
@@ -128,6 +160,14 @@ export default function DocumentAttachment({ linkedType, linkedId, category = 'g
           </button>
         )}
       </div>
+
+      {/* Upload error */}
+      {uploadError && (
+        <div className="flex items-center justify-between text-xs text-danger bg-danger/10 rounded p-2 mb-2">
+          <span>{uploadError}</span>
+          <button onClick={() => setUploadError(null)} className="ml-2">&times;</button>
+        </div>
+      )}
 
       {/* Action buttons */}
       <div className="flex gap-2 flex-wrap mb-2">
@@ -200,6 +240,35 @@ export default function DocumentAttachment({ linkedType, linkedId, category = 'g
           {docs.map(doc => {
             const isLink = doc.mime_type === 'application/link';
             const extracted = doc.ai_extracted || {};
+            const isEditing = editingId === doc.id;
+
+            if (isEditing) {
+              return (
+                <div key={doc.id} className="p-2 rounded bg-cream/30 space-y-1.5">
+                  <div className="flex gap-2">
+                    <input
+                      className="input-field text-xs flex-1"
+                      value={editForm.original_name}
+                      onChange={e => setEditForm(f => ({ ...f, original_name: e.target.value }))}
+                      placeholder="Document name"
+                    />
+                    {isLink && (
+                      <input
+                        className="input-field text-xs flex-1"
+                        value={editForm.file_path}
+                        onChange={e => setEditForm(f => ({ ...f, file_path: e.target.value }))}
+                        placeholder="URL"
+                      />
+                    )}
+                  </div>
+                  <div className="flex gap-1">
+                    <button onClick={saveEdit} className="text-xs px-2 py-0.5 rounded bg-gold/20 text-gold hover:bg-gold/30">Save</button>
+                    <button onClick={() => setEditingId(null)} className="text-xs px-2 py-0.5 text-warm-gray hover:text-foreground">Cancel</button>
+                  </div>
+                </div>
+              );
+            }
+
             return (
               <div key={doc.id} className="flex items-center gap-2 text-xs p-1.5 rounded hover:bg-cream/30">
                 <span>{isLink ? '\u{1F517}' : '\u{1F4C4}'}</span>
@@ -228,6 +297,13 @@ export default function DocumentAttachment({ linkedType, linkedId, category = 'g
                     {extracting === doc.id ? '...' : '\u{1F916}'}
                   </button>
                 )}
+                <button
+                  onClick={() => startEdit(doc)}
+                  className="text-warm-gray hover:text-gold"
+                  title="Edit"
+                >
+                  {'\u270F\uFE0F'}
+                </button>
                 <button
                   onClick={() => handleDelete(doc.id)}
                   className="text-warm-gray hover:text-danger"

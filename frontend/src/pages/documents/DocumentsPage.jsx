@@ -41,6 +41,8 @@ export default function DocumentsPage() {
   const [linkForm, setLinkForm] = useState({ title: '', url: '', category: 'general', notes: '', linked_type: '', linked_id: '' });
   const [pushingToPaperless, setPushingToPaperless] = useState(null);
   const [paperlessConfigured, setPaperlessConfigured] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
+  const [editingDoc, setEditingDoc] = useState(null);
   const fileRef = useRef();
   const enhancedFileRef = useRef();
 
@@ -94,21 +96,29 @@ export default function DocumentsPage() {
     const file = e.target.files[0];
     if (!file) return;
     setUploading(true);
+    setUploadError(null);
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('category', 'general');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('category', 'general');
 
-    const res = await fetch(`${API_BASE}/documents/upload`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData,
-    });
+      const res = await fetch(`${API_BASE}/documents/upload`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
 
-    if (res.ok) {
-      const result = await res.json();
-      loadDocs();
-      handleExtract(result.id);
+      if (res.ok) {
+        const result = await res.json();
+        loadDocs();
+        handleExtract(result.id);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setUploadError(err.error || `Upload failed (${res.status})`);
+      }
+    } catch (err) {
+      setUploadError(`Upload failed: ${err.message}`);
     }
     setUploading(false);
     if (fileRef.current) fileRef.current.value = '';
@@ -118,29 +128,37 @@ export default function DocumentsPage() {
     const file = e.target.files[0];
     if (!file) return;
     setUploading(true);
+    setUploadError(null);
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('category', uploadCategory);
-    if (uploadLinkedType) formData.append('linked_type', uploadLinkedType);
-    if (uploadLinkedId) formData.append('linked_id', uploadLinkedId);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('category', uploadCategory);
+      if (uploadLinkedType) formData.append('linked_type', uploadLinkedType);
+      if (uploadLinkedId) formData.append('linked_id', uploadLinkedId);
 
-    const res = await fetch(`${API_BASE}/documents/upload`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData,
-    });
+      const res = await fetch(`${API_BASE}/documents/upload`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
 
-    if (res.ok) {
-      const result = await res.json();
-      if (uploadAiExtract) {
-        handleExtract(result.id);
+      if (res.ok) {
+        const result = await res.json();
+        if (uploadAiExtract) {
+          handleExtract(result.id);
+        }
+        loadDocs();
+        setShowUploadForm(false);
+        setUploadCategory('general');
+        setUploadLinkedType('');
+        setUploadLinkedId('');
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setUploadError(err.error || `Upload failed (${res.status})`);
       }
-      loadDocs();
-      setShowUploadForm(false);
-      setUploadCategory('general');
-      setUploadLinkedType('');
-      setUploadLinkedId('');
+    } catch (err) {
+      setUploadError(`Upload failed: ${err.message}`);
     }
     setUploading(false);
     if (enhancedFileRef.current) enhancedFileRef.current.value = '';
@@ -168,6 +186,7 @@ export default function DocumentsPage() {
       body: JSON.stringify(updates),
     });
     setReviewDoc(null);
+    setEditingDoc(null);
     loadDocs();
   };
 
@@ -237,6 +256,16 @@ export default function DocumentsPage() {
           </Button>
         </div>
       </div>
+
+      {/* Upload error */}
+      {uploadError && (
+        <Card accent="var(--color-terracotta)">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-danger">{uploadError}</p>
+            <button onClick={() => setUploadError(null)} className="text-xs text-warm-gray hover:text-foreground">&times;</button>
+          </div>
+        </Card>
+      )}
 
       {/* Enhanced Upload Form — upload with category and bill linking */}
       {showUploadForm && (
@@ -360,6 +389,18 @@ export default function DocumentsPage() {
         ))}
       </div>
 
+      {/* Edit Document Panel */}
+      {editingDoc && (
+        <EditDocPanel
+          doc={editingDoc}
+          categories={CATEGORIES}
+          linkedTypes={LINKED_TYPES}
+          getLinkedOptions={getLinkedOptions}
+          onSave={(updates) => handleUpdateDoc(editingDoc.id, updates)}
+          onCancel={() => setEditingDoc(null)}
+        />
+      )}
+
       {/* AI Review Panel */}
       {reviewDoc && (
         <AiReviewPanel
@@ -467,6 +508,9 @@ export default function DocumentsPage() {
                   >
                     Review
                   </Button>
+                  <button onClick={() => { setEditingDoc(doc); setReviewDoc(null); }} className="text-xs text-warm-gray hover:text-gold px-1" title="Edit">
+                    Edit
+                  </button>
                   <button onClick={() => handleDelete(doc.id)} className="text-xs text-warm-gray hover:text-danger px-1">
                     Del
                   </button>
@@ -548,6 +592,76 @@ function AiReviewPanel({ doc, fmt, onSave, onCancel }) {
         </Field>
         <div className="flex gap-3 md:col-span-2 lg:col-span-3">
           <Button type="submit">Confirm & Save</Button>
+          <Button variant="ghost" type="button" onClick={onCancel}>Cancel</Button>
+        </div>
+      </form>
+    </Card>
+  );
+}
+
+function EditDocPanel({ doc, categories, linkedTypes, getLinkedOptions, onSave, onCancel }) {
+  const isLink = doc.mime_type === 'application/link';
+  const [form, setForm] = useState({
+    original_name: doc.original_name || '',
+    file_path: isLink ? doc.file_path || '' : '',
+    category: doc.category || 'general',
+    linked_type: doc.linked_type || '',
+    linked_id: doc.linked_id ? String(doc.linked_id) : '',
+    notes: doc.notes || '',
+  });
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const updates = {
+      original_name: form.original_name,
+      category: form.category,
+      linked_type: form.linked_type || null,
+      linked_id: form.linked_id ? parseInt(form.linked_id) : null,
+      notes: form.notes,
+    };
+    if (isLink) updates.file_path = form.file_path;
+    onSave(updates);
+  };
+
+  return (
+    <Card accent="var(--color-gold)">
+      <h3 className="font-serif font-bold mb-3">Edit Document</h3>
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Field label="Name / Title">
+          <input className="input-field" value={form.original_name} onChange={e => set('original_name', e.target.value)} />
+        </Field>
+        {isLink && (
+          <Field label="URL">
+            <input className="input-field" value={form.file_path} onChange={e => set('file_path', e.target.value)} />
+          </Field>
+        )}
+        <Field label="Category">
+          <select className="input-field" value={form.category} onChange={e => set('category', e.target.value)}>
+            {categories.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+          </select>
+        </Field>
+        <Field label="Link To">
+          <select className="input-field" value={form.linked_type} onChange={e => { set('linked_type', e.target.value); set('linked_id', ''); }}>
+            {linkedTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+          </select>
+        </Field>
+        {form.linked_type && (
+          <Field label="Select Item">
+            <select className="input-field" value={form.linked_id} onChange={e => set('linked_id', e.target.value)}>
+              <option value="">Choose...</option>
+              {getLinkedOptions(form.linked_type).map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </Field>
+        )}
+        <Field label="Notes" className="md:col-span-2 lg:col-span-3">
+          <textarea className="input-field" rows={2} value={form.notes} onChange={e => set('notes', e.target.value)} />
+        </Field>
+        <div className="flex gap-3 md:col-span-2 lg:col-span-3">
+          <Button type="submit">Save Changes</Button>
           <Button variant="ghost" type="button" onClick={onCancel}>Cancel</Button>
         </div>
       </form>
