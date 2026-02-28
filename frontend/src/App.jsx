@@ -7,7 +7,7 @@ import LoginPage from './pages/LoginPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import DashboardPage from './pages/DashboardPage';
 import SettingsPage from './pages/SettingsPage';
-import ComingSoonPage from './pages/ComingSoonPage';
+
 
 // Loan pages
 import LoansManagerPage from './pages/loans/LoansManagerPage';
@@ -28,6 +28,18 @@ import WhatIfPage from './pages/strategy/WhatIfPage';
 // Bill pages
 import BillsPage from './pages/bills/BillsPage';
 import BillDetailPage from './pages/bills/BillDetailPage';
+
+// Insurance pages
+import InsurancePage from './pages/insurance/InsurancePage';
+
+// Document pages
+import DocumentsPage from './pages/documents/DocumentsPage';
+
+// Maintenance pages
+import MaintenancePage from './pages/maintenance/MaintenancePage';
+
+// Calendar
+import CalendarPage from './pages/CalendarPage';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -92,11 +104,17 @@ function AppRoutes() {
         <Route path="bills" element={<BillsPage />} />
         <Route path="bills/:categoryId" element={<BillDetailPage />} />
 
-        {/* Future phase placeholders */}
-        <Route path="insurance" element={<ComingSoonPage title="Insurance" phase={6} />} />
-        <Route path="documents" element={<ComingSoonPage title="Documents" phase={7} />} />
-        <Route path="maintenance" element={<ComingSoonPage title="Maintenance" phase={8} />} />
-        <Route path="calendar" element={<ComingSoonPage title="Calendar" phase={9} />} />
+        {/* Insurance routes */}
+        <Route path="insurance" element={<InsurancePage />} />
+
+        {/* Document routes */}
+        <Route path="documents" element={<DocumentsPage />} />
+
+        {/* Maintenance routes */}
+        <Route path="maintenance" element={<MaintenancePage />} />
+
+        {/* Calendar */}
+        <Route path="calendar" element={<CalendarPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

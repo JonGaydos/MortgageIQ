@@ -15,6 +15,10 @@ import dashboardRoutes from './routes/dashboard.js';
 import strategyRoutes from './routes/strategy.js';
 import billCategoryRoutes from './routes/bill-categories.js';
 import billRoutes from './routes/bills.js';
+import insuranceRoutes from './routes/insurance.js';
+import documentRoutes from './routes/documents.js';
+import maintenanceRoutes from './routes/maintenance.js';
+import calendarRoutes from './routes/calendar.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -42,6 +46,10 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/strategy', strategyRoutes);
 app.use('/api/bill-categories', billCategoryRoutes);
 app.use('/api/bills', billRoutes);
+app.use('/api/insurance', insuranceRoutes);
+app.use('/api/documents', documentRoutes);
+app.use('/api/maintenance', maintenanceRoutes);
+app.use('/api/calendar', calendarRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
