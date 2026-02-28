@@ -31,8 +31,10 @@ export default function AddBillPage() {
 
   // Utility bill form
   const [utilityForm, setUtilityForm] = useState({
-    category_id: '', amount: '', due_date: new Date().toISOString().split('T')[0],
-    usage: '', notes: '',
+    category_id: '', amount: '',
+    bill_date: new Date().toISOString().split('T')[0],
+    due_date: '',
+    usage_amount: '', notes: '',
   });
 
   // Insurance payment form
@@ -54,15 +56,21 @@ export default function AddBillPage() {
   }, []);
 
   const handleLoanPayment = async () => {
-    if (!loanForm.loan_id) return;
+    if (!loanForm.loan_id || !loanForm.payment_date) return;
+    // Auto-sum total_payment if empty
+    const data = { ...loanForm };
+    if (!data.total_payment) {
+      data.total_payment = (parseFloat(data.principal) || 0) + (parseFloat(data.interest) || 0) +
+        (parseFloat(data.escrow) || 0) + (parseFloat(data.extra_principal) || 0);
+    }
     const res = await authFetch(`${API_BASE}/payments/loan/${loanForm.loan_id}`, {
-      method: 'POST', body: JSON.stringify(loanForm),
+      method: 'POST', body: JSON.stringify(data),
     });
     if (res.ok) navigate(`/loans/${loanForm.loan_id}/payments`);
   };
 
   const handleUtilityBill = async () => {
-    if (!utilityForm.category_id || !utilityForm.amount) return;
+    if (!utilityForm.category_id || !utilityForm.amount || !utilityForm.bill_date) return;
     const res = await authFetch(`${API_BASE}/bills`, {
       method: 'POST', body: JSON.stringify(utilityForm),
     });
@@ -148,7 +156,7 @@ export default function AddBillPage() {
             <p className="text-warm-gray text-sm">No utility categories found. <button onClick={() => navigate('/bills')} className="text-gold hover:underline">Create a category first</button></p>
           ) : (
             <>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                 <Field label="Category *">
                   <select className="input-field" value={utilityForm.category_id} onChange={e => setUtilityForm(f => ({ ...f, category_id: e.target.value }))}>
                     <option value="">Choose category...</option>
@@ -156,9 +164,10 @@ export default function AddBillPage() {
                   </select>
                 </Field>
                 <Field label="Amount *"><input type="number" step="0.01" className="input-field" placeholder="0.00" value={utilityForm.amount} onChange={e => setUtilityForm(f => ({ ...f, amount: e.target.value }))} /></Field>
+                <Field label="Bill Date *"><input type="date" className="input-field" value={utilityForm.bill_date} onChange={e => setUtilityForm(f => ({ ...f, bill_date: e.target.value }))} /></Field>
                 <Field label="Due Date"><input type="date" className="input-field" value={utilityForm.due_date} onChange={e => setUtilityForm(f => ({ ...f, due_date: e.target.value }))} /></Field>
-                <Field label="Usage"><input type="number" step="0.01" className="input-field" placeholder="e.g. 850 kWh" value={utilityForm.usage} onChange={e => setUtilityForm(f => ({ ...f, usage: e.target.value }))} /></Field>
-                <Field label="Notes" className="col-span-2"><input type="text" className="input-field" placeholder="Optional" value={utilityForm.notes} onChange={e => setUtilityForm(f => ({ ...f, notes: e.target.value }))} /></Field>
+                <Field label="Usage"><input type="number" step="0.01" className="input-field" placeholder="e.g. 850 kWh" value={utilityForm.usage_amount} onChange={e => setUtilityForm(f => ({ ...f, usage_amount: e.target.value }))} /></Field>
+                <Field label="Notes"><input type="text" className="input-field" placeholder="Optional" value={utilityForm.notes} onChange={e => setUtilityForm(f => ({ ...f, notes: e.target.value }))} /></Field>
               </div>
               <div className="flex gap-2 mt-4">
                 <Button onClick={handleUtilityBill}>Save Utility Bill</Button>
