@@ -11,6 +11,8 @@ import escrowRoutes from './routes/escrow.js';
 import analyticsRoutes from './routes/analytics.js';
 import calculatorRoutes from './routes/calculator.js';
 import creditCardRoutes from './routes/credit-cards.js';
+import dashboardRoutes from './routes/dashboard.js';
+import strategyRoutes from './routes/strategy.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -34,6 +36,8 @@ app.use('/api/escrow', escrowRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/calculator', calculatorRoutes);
 app.use('/api/credit-cards', creditCardRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/strategy', strategyRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

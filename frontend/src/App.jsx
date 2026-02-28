@@ -21,6 +21,10 @@ import ArmRatesPage from './pages/loans/ArmRatesPage';
 import CreditCardsPage from './pages/credit-cards/CreditCardsPage';
 import CardDetailPage from './pages/credit-cards/CardDetailPage';
 
+// Strategy pages
+import StrategyPage from './pages/strategy/StrategyPage';
+import WhatIfPage from './pages/strategy/WhatIfPage';
+
 function ProtectedRoute({ children }) {
   const { isAuthenticated, isLoading } = useAuth();
   if (isLoading) {
@@ -76,8 +80,11 @@ function AppRoutes() {
         <Route path="credit-cards" element={<CreditCardsPage />} />
         <Route path="credit-cards/:cardId" element={<CardDetailPage />} />
 
+        {/* Strategy routes */}
+        <Route path="strategy" element={<StrategyPage />} />
+        <Route path="strategy/what-if" element={<WhatIfPage />} />
+
         {/* Future phase placeholders */}
-        <Route path="strategy" element={<ComingSoonPage title="Debt Strategy" phase={4} />} />
         <Route path="bills" element={<ComingSoonPage title="Utilities & Bills" phase={5} />} />
         <Route path="insurance" element={<ComingSoonPage title="Insurance" phase={6} />} />
         <Route path="documents" element={<ComingSoonPage title="Documents" phase={7} />} />
