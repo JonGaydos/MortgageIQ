@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
@@ -10,6 +10,7 @@ import Badge from '../../components/ui/Badge';
 import StatCard from '../../components/ui/StatCard';
 import Field from '../../components/ui/Field';
 import BillEntryForm from '../../components/bills/BillEntryForm';
+import DocumentAttachment from '../../components/DocumentAttachment';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend, ComposedChart, Area,
@@ -27,6 +28,7 @@ export default function BillDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editBill, setEditBill] = useState(null);
+  const [attachBillId, setAttachBillId] = useState(null);
 
   const loadData = async () => {
     const [catRes, billsRes, analyticsRes] = await Promise.all([
@@ -225,39 +227,62 @@ export default function BillDetailPage() {
                     <th className="text-right px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-warm-gray">{category.usage_unit}</th>
                   )}
                   <th className="text-center px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-warm-gray">Paid</th>
+                  <th className="text-center px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-warm-gray">Docs</th>
                   <th className="text-center px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-warm-gray">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {bills.map(bill => (
-                  <tr key={bill.id} className="border-b border-card-border hover:bg-cream/30 transition-colors">
-                    <td className="px-3 py-2.5">{fmtDate(bill.bill_date)}</td>
-                    <td className="px-3 py-2.5 text-warm-gray">{bill.due_date ? fmtDate(bill.due_date) : '-'}</td>
-                    <td className="px-3 py-2.5 text-right font-semibold">{fmt(bill.amount)}</td>
-                    {category.usage_unit && (
-                      <td className="px-3 py-2.5 text-right">
-                        {bill.usage_amount != null ? `${bill.usage_amount} ${category.usage_unit}` : '-'}
+                  <React.Fragment key={bill.id}>
+                    <tr className="border-b border-card-border hover:bg-cream/30 transition-colors">
+                      <td className="px-3 py-2.5">{fmtDate(bill.bill_date)}</td>
+                      <td className="px-3 py-2.5 text-warm-gray">{bill.due_date ? fmtDate(bill.due_date) : '-'}</td>
+                      <td className="px-3 py-2.5 text-right font-semibold">{fmt(bill.amount)}</td>
+                      {category.usage_unit && (
+                        <td className="px-3 py-2.5 text-right">
+                          {bill.usage_amount != null ? `${bill.usage_amount} ${category.usage_unit}` : '-'}
+                        </td>
+                      )}
+                      <td className="px-3 py-2.5 text-center">
+                        <button
+                          onClick={() => togglePaid(bill.id)}
+                          className={`w-5 h-5 rounded border-2 inline-flex items-center justify-center transition-all ${
+                            bill.paid
+                              ? 'bg-sage/20 border-sage text-sage'
+                              : 'border-card-border hover:border-gold'
+                          }`}
+                        >
+                          {bill.paid ? '\u2713' : ''}
+                        </button>
                       </td>
+                      <td className="px-3 py-2.5 text-center">
+                        <button
+                          onClick={() => setAttachBillId(attachBillId === bill.id ? null : bill.id)}
+                          className={`text-xs px-1 transition-colors ${attachBillId === bill.id ? 'text-gold' : 'text-warm-gray hover:text-gold'}`}
+                          title="Attach documents"
+                        >
+                          {'\u{1F4CE}'}
+                        </button>
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        <div className="flex justify-center gap-1">
+                          <button onClick={() => openEditBill(bill)} className="text-xs text-warm-gray hover:text-gold px-1">Edit</button>
+                          <button onClick={() => deleteBill(bill.id)} className="text-xs text-warm-gray hover:text-danger px-1">Del</button>
+                        </div>
+                      </td>
+                    </tr>
+                    {attachBillId === bill.id && (
+                      <tr className="border-b border-card-border">
+                        <td colSpan={category.usage_unit ? 7 : 6} className="px-3 py-2">
+                          <DocumentAttachment
+                            linkedType="bill"
+                            linkedId={bill.id}
+                            category="utilities"
+                          />
+                        </td>
+                      </tr>
                     )}
-                    <td className="px-3 py-2.5 text-center">
-                      <button
-                        onClick={() => togglePaid(bill.id)}
-                        className={`w-5 h-5 rounded border-2 inline-flex items-center justify-center transition-all ${
-                          bill.paid
-                            ? 'bg-sage/20 border-sage text-sage'
-                            : 'border-card-border hover:border-gold'
-                        }`}
-                      >
-                        {bill.paid ? '\u2713' : ''}
-                      </button>
-                    </td>
-                    <td className="px-3 py-2.5 text-center">
-                      <div className="flex justify-center gap-1">
-                        <button onClick={() => openEditBill(bill)} className="text-xs text-warm-gray hover:text-gold px-1">Edit</button>
-                        <button onClick={() => deleteBill(bill.id)} className="text-xs text-warm-gray hover:text-danger px-1">Del</button>
-                      </div>
-                    </td>
-                  </tr>
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>

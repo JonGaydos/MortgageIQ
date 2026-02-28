@@ -31,7 +31,7 @@ router.get('/', (req, res) => {
     title: e.title,
     date: e.event_date,
     type: 'custom',
-    color: e.color || 'var(--color-gold)',
+    color: e.color || '#d4a843',
     notes: e.notes,
   }));
 
@@ -50,7 +50,7 @@ router.get('/', (req, res) => {
       title: `${b.icon || '\u{1F4A1}'} ${b.category_name}`,
       date: b.due_date,
       type: 'bill',
-      color: b.paid ? 'var(--color-sage)' : 'var(--color-terracotta)',
+      color: b.paid ? '#7c9a6e' : '#c46d4e',
       amount: b.amount,
       paid: !!b.paid,
     }));
@@ -68,12 +68,13 @@ router.get('/', (req, res) => {
       title: `\u{1F6E1}\uFE0F ${p.name} Renewal`,
       date: p.renewal_date,
       type: 'insurance',
-      color: 'var(--color-gold)',
+      color: '#d4a843',
     }));
   } catch { /* table may not exist */ }
 
-  // Maintenance due dates
+  // Maintenance due dates (include overdue tasks that haven't been completed)
   try {
+    // Tasks due within this month
     const tasks = db.prepare(`
       SELECT * FROM maintenance_tasks
       WHERE next_due >= ? AND next_due < ? AND status != 'completed'
@@ -84,7 +85,36 @@ router.get('/', (req, res) => {
       title: `\u{1F527} ${t.name}`,
       date: t.next_due,
       type: 'maintenance',
-      color: t.priority === 'high' ? 'var(--color-danger)' : 'var(--color-warm-gray)',
+      color: t.priority === 'high' ? '#dc2626' : '#6b7280',
+    }));
+
+    // Overdue tasks (next_due before this month, not completed) — show on day 1
+    const overdue = db.prepare(`
+      SELECT * FROM maintenance_tasks
+      WHERE next_due < ? AND next_due IS NOT NULL AND next_due != '' AND status != 'completed'
+    `).all(startDate);
+
+    overdue.forEach(t => events.push({
+      id: `maint_overdue_${t.id}`,
+      title: `\u26A0\uFE0F ${t.name} (Overdue)`,
+      date: startDate,
+      type: 'maintenance',
+      color: '#dc2626',
+      notes: `Originally due: ${t.next_due}`,
+    }));
+
+    // Tasks without a next_due date but with status 'pending' — show on day 1
+    const unscheduled = db.prepare(`
+      SELECT * FROM maintenance_tasks
+      WHERE (next_due IS NULL OR next_due = '') AND status != 'completed'
+    `).all();
+
+    unscheduled.forEach(t => events.push({
+      id: `maint_unsched_${t.id}`,
+      title: `\u{1F527} ${t.name} (Unscheduled)`,
+      date: startDate,
+      type: 'maintenance',
+      color: '#9ca3af',
     }));
   } catch { /* table may not exist */ }
 
@@ -103,7 +133,7 @@ router.get('/', (req, res) => {
       title: `\u{1F4B5} ${p.loan_name} Payment`,
       date: p.payment_date,
       type: 'payment',
-      color: 'var(--color-sage)',
+      color: '#7c9a6e',
       amount: p.total_payment,
     }));
   } catch { /* table may not exist */ }
@@ -123,7 +153,7 @@ router.get('/', (req, res) => {
       title: `\u{1F4B3} ${s.card_name} Payment`,
       date: s.snapshot_date,
       type: 'cc_payment',
-      color: 'var(--color-gold)',
+      color: '#d4a843',
       amount: s.payment_made,
     }));
   } catch { /* table may not exist */ }
@@ -143,7 +173,7 @@ router.get('/', (req, res) => {
       title: `\u{1F6E1}\uFE0F ${p.policy_name} Premium`,
       date: p.payment_date,
       type: 'insurance_payment',
-      color: 'var(--color-gold)',
+      color: '#d4a843',
       amount: p.amount,
     }));
   } catch { /* table may not exist */ }

@@ -6,6 +6,7 @@ import { API_BASE } from '../../utils/api';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Field from '../../components/ui/Field';
+import DocumentAttachment from '../../components/DocumentAttachment';
 
 const BILL_TYPES = [
   { value: 'utility', label: 'Utility Bill', icon: '\u{1F4A1}', description: 'Electric, water, gas, internet, etc.' },
@@ -22,6 +23,9 @@ export default function AddBillPage() {
   const [categories, setCategories] = useState([]);
   const [policies, setPolicies] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // After-save state for document attachment
+  const [savedEntry, setSavedEntry] = useState(null); // { type, id, redirectUrl }
 
   // Loan payment form
   const [loanForm, setLoanForm] = useState({
@@ -57,7 +61,6 @@ export default function AddBillPage() {
 
   const handleLoanPayment = async () => {
     if (!loanForm.loan_id || !loanForm.payment_date) return;
-    // Auto-sum total_payment if empty
     const data = { ...loanForm };
     if (!data.total_payment) {
       data.total_payment = (parseFloat(data.principal) || 0) + (parseFloat(data.interest) || 0) +
@@ -66,7 +69,16 @@ export default function AddBillPage() {
     const res = await authFetch(`${API_BASE}/payments/loan/${loanForm.loan_id}`, {
       method: 'POST', body: JSON.stringify(data),
     });
-    if (res.ok) navigate(`/loans/${loanForm.loan_id}/payments`);
+    if (res.ok) {
+      const result = await res.json();
+      setSavedEntry({
+        type: 'loan_payment',
+        id: result.id,
+        category: 'mortgage',
+        redirectUrl: `/loans/${loanForm.loan_id}/payments`,
+        label: 'Loan Payment',
+      });
+    }
   };
 
   const handleUtilityBill = async () => {
@@ -74,7 +86,16 @@ export default function AddBillPage() {
     const res = await authFetch(`${API_BASE}/bills`, {
       method: 'POST', body: JSON.stringify(utilityForm),
     });
-    if (res.ok) navigate(`/bills/${utilityForm.category_id}`);
+    if (res.ok) {
+      const result = await res.json();
+      setSavedEntry({
+        type: 'bill',
+        id: result.id,
+        category: 'utilities',
+        redirectUrl: `/bills/${utilityForm.category_id}`,
+        label: 'Utility Bill',
+      });
+    }
   };
 
   const handleInsurancePayment = async () => {
@@ -82,10 +103,58 @@ export default function AddBillPage() {
     const res = await authFetch(`${API_BASE}/insurance/${insuranceForm.policy_id}/payments`, {
       method: 'POST', body: JSON.stringify(insuranceForm),
     });
-    if (res.ok) navigate('/insurance');
+    if (res.ok) {
+      const result = await res.json();
+      setSavedEntry({
+        type: 'insurance_payment',
+        id: result.id,
+        category: 'insurance',
+        redirectUrl: '/insurance',
+        label: 'Insurance Payment',
+      });
+    }
   };
 
   if (loading) return <div className="text-warm-gray text-center py-12">Loading...</div>;
+
+  // After saving, show success + document attachment
+  if (savedEntry) {
+    return (
+      <div className="space-y-6">
+        <h1 className="font-serif text-2xl font-bold">Add Bill</h1>
+        <Card accent="var(--color-sage)">
+          <div className="text-center py-4">
+            <div className="text-3xl mb-2">{'\u2705'}</div>
+            <h3 className="font-serif font-bold text-lg">{savedEntry.label} Saved!</h3>
+            <p className="text-sm text-warm-gray mt-1">
+              You can now attach documents, upload a PDF for AI processing, or link a Paperless-NGX URL.
+            </p>
+          </div>
+
+          <DocumentAttachment
+            linkedType={savedEntry.type}
+            linkedId={savedEntry.id}
+            category={savedEntry.category}
+          />
+
+          <div className="flex gap-3 mt-4 justify-center">
+            <Button onClick={() => navigate(savedEntry.redirectUrl)}>
+              View Details
+            </Button>
+            <Button variant="outline" onClick={() => {
+              setSavedEntry(null);
+              setBillType(null);
+              setLoanForm({ loan_id: '', payment_date: new Date().toISOString().split('T')[0], total_payment: '', principal: '', interest: '', escrow: '', extra_principal: '', notes: '' });
+              setUtilityForm({ category_id: '', amount: '', bill_date: new Date().toISOString().split('T')[0], due_date: '', usage_amount: '', notes: '' });
+              setInsuranceForm({ policy_id: '', amount: '', payment_date: new Date().toISOString().split('T')[0], notes: '' });
+            }}>
+              Add Another
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

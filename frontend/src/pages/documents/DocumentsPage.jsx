@@ -20,6 +20,13 @@ const CATEGORIES = [
   { value: 'receipt', label: 'Receipt' },
 ];
 
+const LINKED_TYPES = [
+  { value: '', label: 'None (standalone)' },
+  { value: 'bill', label: 'Utility Bill' },
+  { value: 'loan_payment', label: 'Loan Payment' },
+  { value: 'insurance_payment', label: 'Insurance Payment' },
+];
+
 export default function DocumentsPage() {
   const { authFetch, token } = useAuth();
   const { fmt } = useCurrency();
@@ -30,10 +37,23 @@ export default function DocumentsPage() {
   const [extracting, setExtracting] = useState(null);
   const [reviewDoc, setReviewDoc] = useState(null);
   const [showLinkForm, setShowLinkForm] = useState(false);
-  const [linkForm, setLinkForm] = useState({ title: '', url: '', category: 'general', notes: '' });
+  const [showUploadForm, setShowUploadForm] = useState(false);
+  const [linkForm, setLinkForm] = useState({ title: '', url: '', category: 'general', notes: '', linked_type: '', linked_id: '' });
   const [pushingToPaperless, setPushingToPaperless] = useState(null);
   const [paperlessConfigured, setPaperlessConfigured] = useState(false);
   const fileRef = useRef();
+  const enhancedFileRef = useRef();
+
+  // Upload form state
+  const [uploadCategory, setUploadCategory] = useState('general');
+  const [uploadLinkedType, setUploadLinkedType] = useState('');
+  const [uploadLinkedId, setUploadLinkedId] = useState('');
+  const [uploadAiExtract, setUploadAiExtract] = useState(true);
+
+  // Linkable entities (bills, payments, etc.)
+  const [recentBills, setRecentBills] = useState([]);
+  const [recentPayments, setRecentPayments] = useState([]);
+  const [recentInsPayments, setRecentInsPayments] = useState([]);
 
   const loadDocs = async () => {
     const url = filter ? `${API_BASE}/documents?category=${filter}` : `${API_BASE}/documents`;
@@ -44,13 +64,29 @@ export default function DocumentsPage() {
 
   useEffect(() => { loadDocs(); }, [filter]);
 
-  // Check if Paperless-NGX is configured
+  // Check if Paperless-NGX is configured + load linkable entities
   useEffect(() => {
     authFetch(`${API_BASE}/settings`).then(async r => {
       if (r.ok) {
         const settings = await r.json();
-        setPaperlessConfigured(!!(settings.paperless_url && settings.paperless_api_key));
+        setPaperlessConfigured(!!(settings.paperless_ngx_url && settings.has_paperless_ngx_token));
       }
+    });
+
+    // Load recent bills for linking
+    authFetch(`${API_BASE}/bill-categories`).then(async r => {
+      if (!r.ok) return;
+      const cats = await r.json();
+      const allBills = [];
+      for (const cat of cats.slice(0, 10)) {
+        const br = await authFetch(`${API_BASE}/bills/category/${cat.id}?limit=10`);
+        if (br.ok) {
+          const bills = await br.json();
+          allBills.push(...bills.map(b => ({ ...b, category_name: cat.name, category_icon: cat.icon })));
+        }
+      }
+      allBills.sort((a, b) => b.bill_date.localeCompare(a.bill_date));
+      setRecentBills(allBills.slice(0, 30));
     });
   }, []);
 
@@ -72,11 +108,42 @@ export default function DocumentsPage() {
     if (res.ok) {
       const result = await res.json();
       loadDocs();
-      // Auto-extract with AI if available
       handleExtract(result.id);
     }
     setUploading(false);
     if (fileRef.current) fileRef.current.value = '';
+  };
+
+  const handleEnhancedUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('category', uploadCategory);
+    if (uploadLinkedType) formData.append('linked_type', uploadLinkedType);
+    if (uploadLinkedId) formData.append('linked_id', uploadLinkedId);
+
+    const res = await fetch(`${API_BASE}/documents/upload`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+
+    if (res.ok) {
+      const result = await res.json();
+      if (uploadAiExtract) {
+        handleExtract(result.id);
+      }
+      loadDocs();
+      setShowUploadForm(false);
+      setUploadCategory('general');
+      setUploadLinkedType('');
+      setUploadLinkedId('');
+    }
+    setUploading(false);
+    if (enhancedFileRef.current) enhancedFileRef.current.value = '';
   };
 
   const handleExtract = async (id) => {
@@ -106,13 +173,18 @@ export default function DocumentsPage() {
 
   const handleLinkDocument = async () => {
     if (!linkForm.title || !linkForm.url) return;
+    const payload = { ...linkForm };
+    if (!payload.linked_type) {
+      delete payload.linked_type;
+      delete payload.linked_id;
+    }
     const res = await authFetch(`${API_BASE}/documents/link`, {
       method: 'POST',
-      body: JSON.stringify(linkForm),
+      body: JSON.stringify(payload),
     });
     if (res.ok) {
       setShowLinkForm(false);
-      setLinkForm({ title: '', url: '', category: 'general', notes: '' });
+      setLinkForm({ title: '', url: '', category: 'general', notes: '', linked_type: '', linked_id: '' });
       loadDocs();
     }
   };
@@ -129,13 +201,24 @@ export default function DocumentsPage() {
     setPushingToPaperless(null);
   };
 
+  // Get linked item options based on type
+  const getLinkedOptions = (type) => {
+    if (type === 'bill') {
+      return recentBills.map(b => ({
+        value: String(b.id),
+        label: `${b.category_icon || ''} ${b.category_name} - ${fmtDate(b.bill_date)} - ${fmt(b.amount)} ${b.paid ? '(Paid)' : '(Unpaid)'}`,
+      }));
+    }
+    return [];
+  };
+
   if (loading) return <div className="text-warm-gray text-center py-12">Loading...</div>;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="font-serif text-2xl font-bold">Documents</h1>
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
           <input
             ref={fileRef}
             type="file"
@@ -144,20 +227,79 @@ export default function DocumentsPage() {
             onChange={handleUpload}
           />
           <Button onClick={() => fileRef.current?.click()} disabled={uploading}>
-            {uploading ? 'Uploading...' : '+ Upload Document'}
+            {uploading ? 'Uploading...' : '+ Quick Upload'}
           </Button>
-          <Button variant="outline" onClick={() => setShowLinkForm(!showLinkForm)}>
+          <Button variant="outline" onClick={() => { setShowUploadForm(!showUploadForm); setShowLinkForm(false); }}>
+            {showUploadForm ? 'Cancel' : '\u{1F4C4} Upload & Link'}
+          </Button>
+          <Button variant="outline" onClick={() => { setShowLinkForm(!showLinkForm); setShowUploadForm(false); }}>
             {showLinkForm ? 'Cancel' : '\u{1F517} Link URL'}
           </Button>
         </div>
       </div>
 
+      {/* Enhanced Upload Form — upload with category and bill linking */}
+      {showUploadForm && (
+        <Card accent="var(--color-sage)">
+          <h3 className="font-serif font-bold mb-3">Upload Document</h3>
+          <p className="text-xs text-warm-gray mb-4">Upload a PDF or image and optionally link it to a bill, payment, or policy.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Field label="Category">
+              <select className="input-field" value={uploadCategory} onChange={e => setUploadCategory(e.target.value)}>
+                {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+              </select>
+            </Field>
+            <Field label="Link To">
+              <select className="input-field" value={uploadLinkedType} onChange={e => { setUploadLinkedType(e.target.value); setUploadLinkedId(''); }}>
+                {LINKED_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+            </Field>
+            {uploadLinkedType && (
+              <Field label="Select Item">
+                <select className="input-field" value={uploadLinkedId} onChange={e => setUploadLinkedId(e.target.value)}>
+                  <option value="">Choose...</option>
+                  {getLinkedOptions(uploadLinkedType).map(o => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </Field>
+            )}
+            <Field label="AI Processing">
+              <div className="flex items-center gap-2 h-10">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={uploadAiExtract}
+                    onChange={e => setUploadAiExtract(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm">Auto AI Extract</span>
+                </label>
+              </div>
+            </Field>
+          </div>
+          <div className="flex gap-2 mt-4">
+            <input
+              ref={enhancedFileRef}
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png,.gif,.webp"
+              className="hidden"
+              onChange={handleEnhancedUpload}
+            />
+            <Button onClick={() => enhancedFileRef.current?.click()} disabled={uploading}>
+              {uploading ? 'Uploading...' : 'Choose File & Upload'}
+            </Button>
+            <Button variant="ghost" onClick={() => setShowUploadForm(false)}>Cancel</Button>
+          </div>
+        </Card>
+      )}
+
       {/* Link External Document Form */}
       {showLinkForm && (
         <Card accent="var(--color-gold)">
           <h3 className="font-serif font-bold mb-3">Link External Document</h3>
-          <p className="text-xs text-warm-gray mb-4">Link to a Paperless-NGX document or any external URL.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <p className="text-xs text-warm-gray mb-4">Link to a Paperless-NGX document or any external URL. Optionally link to a specific bill or payment.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <Field label="Title *">
               <input className="input-field" placeholder="Document name" value={linkForm.title} onChange={e => setLinkForm(f => ({ ...f, title: e.target.value }))} />
             </Field>
@@ -169,6 +311,21 @@ export default function DocumentsPage() {
                 {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
             </Field>
+            <Field label="Link To">
+              <select className="input-field" value={linkForm.linked_type} onChange={e => setLinkForm(f => ({ ...f, linked_type: e.target.value, linked_id: '' }))}>
+                {LINKED_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+            </Field>
+            {linkForm.linked_type && (
+              <Field label="Select Item">
+                <select className="input-field" value={linkForm.linked_id} onChange={e => setLinkForm(f => ({ ...f, linked_id: e.target.value }))}>
+                  <option value="">Choose...</option>
+                  {getLinkedOptions(linkForm.linked_type).map(o => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </Field>
+            )}
             <Field label="Notes">
               <input className="input-field" placeholder="Optional" value={linkForm.notes} onChange={e => setLinkForm(f => ({ ...f, notes: e.target.value }))} />
             </Field>
@@ -257,6 +414,7 @@ export default function DocumentsPage() {
                 <div className="flex gap-1.5 mt-2 flex-wrap">
                   <Badge color={doc.category === 'general' ? 'gray' : 'orange'}>{doc.category}</Badge>
                   {isLink && <Badge color="blue">Link</Badge>}
+                  {doc.linked_type && <Badge color="green">{doc.linked_type.replace('_', ' ')}</Badge>}
                   {doc.ai_confidence != null && (
                     <Badge color={doc.ai_confidence >= 80 ? 'green' : doc.ai_confidence >= 50 ? 'orange' : 'red'}>
                       AI: {doc.ai_confidence}%

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Button from '../ui/Button';
 import Field from '../ui/Field';
+import DocumentAttachment from '../DocumentAttachment';
 
 export default function BillEntryForm({ bill, category, onSave, onCancel }) {
   const [form, setForm] = useState({
@@ -30,6 +31,11 @@ export default function BillEntryForm({ bill, category, onSave, onCancel }) {
       category_id: category.id,
     });
   };
+
+  // Determine document category based on bill category name
+  const docCategory = category.name?.toLowerCase().includes('electric') || category.name?.toLowerCase().includes('water')
+    || category.name?.toLowerCase().includes('gas') || category.name?.toLowerCase().includes('internet')
+    ? 'utilities' : 'general';
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -114,6 +120,13 @@ export default function BillEntryForm({ bill, category, onSave, onCancel }) {
           </Field>
         )}
       </div>
+
+      {/* Document Attachment Section */}
+      <DocumentAttachment
+        linkedType="bill"
+        linkedId={bill?.id || null}
+        category={docCategory}
+      />
 
       <div className="flex gap-2 pt-2">
         <Button type="submit">{bill ? 'Update' : 'Add Bill'}</Button>

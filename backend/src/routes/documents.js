@@ -76,8 +76,8 @@ router.post('/:id/push-to-paperless', async (req, res) => {
   if (!doc) return res.status(404).json({ error: 'Not found' });
 
   const { getSetting } = await import('../db/index.js');
-  const paperlessUrl = getSetting('paperless_url');
-  const paperlessToken = getSetting('paperless_api_key');
+  const paperlessUrl = getSetting('paperless_ngx_url');
+  const paperlessToken = getSetting('paperless_ngx_token');
 
   if (!paperlessUrl || !paperlessToken) {
     return res.status(400).json({ error: 'Paperless-NGX not configured. Set URL and API key in Settings.' });

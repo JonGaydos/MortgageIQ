@@ -151,7 +151,7 @@ export default function CalendarPage() {
                               <div
                                 key={ev.id}
                                 className="text-[10px] leading-tight truncate rounded px-1 py-0.5"
-                                style={{ backgroundColor: ev.color ? `${ev.color}20` : 'var(--color-gold-20)', color: ev.color || 'var(--color-gold)' }}
+                                style={{ backgroundColor: ev.color ? `${ev.color}20` : '#d4a84320', color: ev.color || '#d4a843' }}
                                 title={ev.title}
                               >
                                 {ev.title}
@@ -184,7 +184,7 @@ export default function CalendarPage() {
             <div className="space-y-2">
               {selectedEvents.map(ev => (
                 <div key={ev.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-cream/30">
-                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: ev.color || 'var(--color-gold)' }} />
+                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: ev.color || '#d4a843' }} />
                   <div className="flex-1">
                     <div className="text-sm font-semibold">{ev.title}</div>
                     <div className="text-xs text-warm-gray">
